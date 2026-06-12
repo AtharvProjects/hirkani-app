@@ -1,0 +1,336 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════
+   HIRKANI DESIGN SYSTEM — MODERN PREMIUM
+   ═══════════════════════════════════════════ */
+:root {
+  --pink-hot:     #F4587A;
+  --coral:        #FF7961;
+  --bg-cream:     #FAFAFA;
+  --bg-blush:     #FFF5F7;
+  --glass:        rgba(255, 255, 255, 0.88);
+  --glass-strong: rgba(255, 255, 255, 0.95);
+  --glass-border: rgba(255, 255, 255, 0.60);
+  --glass-shadow: 0 12px 36px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.03);
+  --text-primary:   #1C1C1E;
+  --text-secondary: #4A4A4F;
+  --text-muted:     #7C7C85;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  font-family: 'Nunito', 'SF Pro Rounded', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--bg-cream);
+  background-attachment: fixed;
+}
+
+/* ─── Mobile Shell ─── */
+.mobile-shell {
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ─── WebView Media Control CSS Overrides ─── */
+video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  -webkit-appearance: none !important;
+}
+video::-webkit-media-controls {
+  display: none !important;
+}
+
+/* ─── Phone Screen Gradient Background ─── */
+.mobile-shell-bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 150% 100% at 50% -20%, var(--bg-blush) 0%, var(--bg-cream) 100%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+@layer components {
+/* ─── Glass Card ─── */
+.glass-card {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 28px;
+  box-shadow: var(--glass-shadow);
+  transform: translateZ(0);
+}
+
+.glass-card-strong {
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 28px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+  transform: translateZ(0);
+}
+
+/* ─── Gradient Primary Button ─── */
+.btn-primary {
+  background: linear-gradient(135deg, var(--pink-hot) 0%, var(--coral) 100%);
+  color: #fff;
+  border-radius: 9999px;
+  font-weight: 800;
+  font-family: 'Nunito', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  padding: 0 24px;
+  box-shadow: 0 12px 32px rgba(244, 88, 122, 0.35), 0 4px 12px rgba(244, 88, 122, 0.15);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+}
+.btn-primary:active { transform: scale(0.94); box-shadow: 0 4px 16px rgba(244, 88, 122, 0.30); }
+.btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ─── Ghost Button ─── */
+.btn-ghost {
+  background: rgba(244, 88, 122, 0.08);
+  color: var(--pink-hot);
+  border-radius: 9999px;
+  font-weight: 800;
+  font-family: 'Nunito', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid transparent;
+  padding: 0 24px;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.25s ease;
+  cursor: pointer;
+}
+.btn-ghost:active { transform: scale(0.94); background: rgba(244, 88, 122, 0.15); }
+
+/* Compat alias */
+.btn-dark {
+  background: linear-gradient(135deg, var(--pink-hot) 0%, var(--coral) 100%);
+  color: #fff;
+  border-radius: 9999px;
+  font-weight: 800;
+  font-family: 'Nunito', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  padding: 0 24px;
+  box-shadow: 0 8px 24px rgba(244, 88, 122, 0.45);
+  transition: transform 0.18s ease;
+  cursor: pointer;
+}
+.btn-dark:active { transform: scale(0.96); }
+.btn-dark:disabled { opacity: 0.55; }
+
+/* ─── Safety Badges ─── */
+.badge-safe {
+  background: linear-gradient(135deg, rgba(187,247,208,0.85), rgba(167,243,208,0.70));
+  color: #065F46;
+  border: 1px solid rgba(16,185,129,0.30);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 16px rgba(16,185,129,0.20);
+}
+.badge-caution {
+  background: linear-gradient(135deg, rgba(254,243,199,0.90), rgba(253,230,138,0.70));
+  color: #78350F;
+  border: 1px solid rgba(245,158,11,0.30);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 16px rgba(245,158,11,0.20);
+}
+.badge-avoid {
+  background: linear-gradient(135deg, rgba(254,202,202,0.90), rgba(252,165,165,0.70));
+  color: #7F1D1D;
+  border: 1px solid rgba(239,68,68,0.30);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 16px rgba(239,68,68,0.20);
+}
+
+/* ─── Input fields ─── */
+.hk-input {
+  height: 56px;
+  width: 100%;
+  border-radius: 18px;
+  background: #FFFFFF;
+  border: 1.5px solid rgba(0, 0, 0, 0.06);
+  padding: 0 18px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: 'Nunito', sans-serif;
+  color: var(--text-primary);
+  outline: none;
+  transition: box-shadow 0.25s, border-color 0.25s;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.02), inset 0 1px 3px rgba(0,0,0,0.03);
+}
+.hk-input::placeholder { color: var(--text-muted); font-weight: 500; }
+.hk-input:focus {
+  border-color: var(--pink-hot);
+  box-shadow: 0 0 0 4px rgba(244, 88, 122, 0.15), 0 4px 16px rgba(0,0,0,0.04);
+}
+
+/* ─── Chip/Pill Tags ─── */
+.hk-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'Nunito', sans-serif;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1.5px solid transparent;
+  color: var(--text-secondary);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.25s;
+  cursor: pointer;
+}
+.hk-chip:active { transform: scale(0.94); }
+.hk-chip-active {
+  background: linear-gradient(135deg, var(--pink-hot), var(--coral));
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(244,88,122,0.30);
+}
+}
+
+/* ─── Scrollbar ─── */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ─── Animations ─── */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fadeSlideUp 0.42s cubic-bezier(0.34,1.1,0.64,1) both; }
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0.2) 25%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ─── Toggle Switch ─── */
+.hk-toggle {
+  position: relative;
+  width: 52px;
+  height: 30px;
+  flex-shrink: 0;
+}
+.hk-toggle input { opacity: 0; width: 0; height: 0; }
+.hk-toggle-slider {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: rgba(200, 160, 170, 0.40);
+  transition: background 0.25s;
+  cursor: pointer;
+}
+.hk-toggle-slider::before {
+  content: '';
+  position: absolute;
+  left: 3px; top: 3px;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  transition: transform 0.25s cubic-bezier(0.34,1.3,0.64,1);
+}
+.hk-toggle input:checked + .hk-toggle-slider {
+  background: linear-gradient(135deg, var(--pink-hot), var(--coral));
+  box-shadow: 0 4px 12px rgba(244,88,122,0.40);
+}
+.hk-toggle input:checked + .hk-toggle-slider::before {
+  transform: translateX(22px);
+}
+
+/* ─── WebView Video Controller Overrides ─── */
+video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  -webkit-appearance: none !important;
+}
+video::-webkit-media-controls {
+  display: none !important;
+}
+video::-webkit-media-controls-enclosure {
+  display: none !important;
+}
+
+/* ─── Glass 3D ─── */
+.glass3d { 
+  --filter-glass3d: blur(18px) brightness(0.72) saturate(2.5); 
+  --color-glass3d: hsl(189 80% 10% / 0.2); 
+  --noise-glass3d: url("https://www.transparenttextures.com/patterns/egg-shell.png"); 
+
+  position: relative; 
+  z-index: 4; 
+  box-shadow:  
+    0 0 0.75px hsl(205 20% 10% / 0.2), 
+    0.7px 0.8px 1.2px -0.4px hsl(205 20% 10% / 0.1), 
+    1.3px 1.5px 2.2px -0.8px hsl(205 20% 10% / 0.1), 
+    2.3px 2.6px 3.9px -1.2px hsl(205 20% 10% / 0.1), 
+    3.9px 4.4px 6.6px -1.7px hsl(205 20% 10% / 0.1), 
+    6.5px 7.2px 10.9px -2.1px hsl(205 20% 10% / 0.1), 
+    8px 9px 14px -2.5px hsl(205 20% 10% / 0.2); 
+}
+
+.glass3d::before { 
+  content: ""; 
+  position: absolute; 
+  inset: 0; 
+  pointer-events: none; 
+  border-radius: inherit; 
+  overflow: hidden; 
+  z-index: 3; 
+  
+  -webkit-backdrop-filter: var(--filter-glass3d); 
+  backdrop-filter: var(--filter-glass3d); 
+  background-color: var(--color-glass3d); 
+  background-image: var(--noise-glass3d); 
+  background-size: 100px; 
+  background-repeat: repeat; 
+}
+
+.glass3d::after { 
+  content: ""; 
+  position: absolute; 
+  inset: 0; 
+  pointer-events: none; 
+  border-radius: inherit; 
+  overflow: hidden; 
+  z-index: 5; 
+  
+  box-shadow: 
+    inset 2px 2px 1px -3px hsl(205 20% 90% / 0.8), 
+    inset 4px 4px 2px -6px hsl(205 20% 90% / 0.3), 
+    inset 1.5px 1.5px 1.5px -0.75px hsl(205 20% 90% / 0.15), 
+    inset 1.5px 1.5px 0.25px hsl(205 20% 90% / 0.03), 
+    inset 0 0 0.25px 0.5px hsl(205 20% 90% / 0.03); 
+}
+
+.glass3d > * { 
+  position: relative; 
+  z-index: 6; 
+}
+

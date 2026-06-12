@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">hirkani</string>
+    <string name="title_activity_main">hirkani</string>
+    <string name="package_name">com.hirkani.app</string>
+    <string name="custom_url_scheme">com.hirkani.app</string>
+    <string name="server_client_id">99497887362-64ooud64m85rqobv46sepcjaee0bv5s1.apps.googleusercontent.com</string>
+</resources>
