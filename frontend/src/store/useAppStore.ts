@@ -33,6 +33,7 @@ interface AppState {
   
   // Streak Actions
   incrementStreak: () => void;
+  hydratePreferences: (prefs: any) => void;
   
   clearState: () => void;
 }
@@ -54,47 +55,78 @@ export const useAppStore = create<AppState>()(
       
       setAuthed: (isAuthed) => set({ isAuthed }),
       setProfile: (profile) => set({ profile }),
-      setDueDate: (dueDate) => set({ dueDate }),
+      setDueDate: (dueDate) => {
+        set({ dueDate });
+        import('@/lib/api').then(({ api }) => api.syncPreferences());
+      },
       setFavorites: (favorites) => set({ favorites }),
       setScanHistory: (scanHistory) => set({ scanHistory }),
       setScanThumbnail: (id, base64) => set((state) => ({ 
         scanThumbnails: { ...state.scanThumbnails, [id]: base64 } 
       })),
       
-      incrementWater: () => set((state) => {
-        const today = new Date().toISOString().split('T')[0];
-        if (state.lastTrackedDate !== today) {
-          return { dailyWater: 1, tookVitamin: false, lastTrackedDate: today };
-        }
-        return { dailyWater: Math.min(state.dailyWater + 1, 8) };
-      }),
-      toggleVitamin: () => set((state) => {
-        const today = new Date().toISOString().split('T')[0];
-        if (state.lastTrackedDate !== today) {
-          return { dailyWater: 0, tookVitamin: true, lastTrackedDate: today };
-        }
-        return { tookVitamin: !state.tookVitamin };
-      }),
-      resetHabitsIfNeeded: () => set((state) => {
-        const today = new Date().toISOString().split('T')[0];
-        if (state.lastTrackedDate !== today) {
-          return { dailyWater: 0, tookVitamin: false, lastTrackedDate: today };
-        }
-        return state;
-      }),
-      incrementStreak: () => set((state) => {
-        const today = new Date().toISOString().split('T')[0];
-        if (state.lastStreakDate === today) return state; // Already earned today
-        
-        // If they missed yesterday, reset to 1. Otherwise, increment.
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split('T')[0];
-        
-        if (state.lastStreakDate === yesterdayStr) {
-          return { streakCount: state.streakCount + 1, lastStreakDate: today };
-        }
-        return { streakCount: 1, lastStreakDate: today };
+      incrementWater: () => {
+        set((state) => {
+          const today = new Date().toISOString().split('T')[0];
+          if (state.lastTrackedDate !== today) {
+            return { dailyWater: 1, tookVitamin: false, lastTrackedDate: today };
+          }
+          return { dailyWater: Math.min(state.dailyWater + 1, 8) };
+        });
+        import('@/lib/api').then(({ api }) => api.syncPreferences());
+      },
+      toggleVitamin: () => {
+        set((state) => {
+          const today = new Date().toISOString().split('T')[0];
+          if (state.lastTrackedDate !== today) {
+            return { dailyWater: 0, tookVitamin: true, lastTrackedDate: today };
+          }
+          return { tookVitamin: !state.tookVitamin };
+        });
+        import('@/lib/api').then(({ api }) => api.syncPreferences());
+      },
+      resetHabitsIfNeeded: () => {
+        let changed = false;
+        set((state) => {
+          const today = new Date().toISOString().split('T')[0];
+          if (state.lastTrackedDate !== today) {
+            changed = true;
+            return { dailyWater: 0, tookVitamin: false, lastTrackedDate: today };
+          }
+          return state;
+        });
+        if (changed) import('@/lib/api').then(({ api }) => api.syncPreferences());
+      },
+      incrementStreak: () => {
+        let changed = false;
+        set((state) => {
+          const today = new Date().toISOString().split('T')[0];
+          if (state.lastStreakDate === today) return state; // Already earned today
+          
+          changed = true;
+          // If they missed yesterday, reset to 1. Otherwise, increment.
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yesterdayStr = yesterday.toISOString().split('T')[0];
+          
+          if (state.lastStreakDate === yesterdayStr) {
+            return { streakCount: state.streakCount + 1, lastStreakDate: today };
+          }
+          return { streakCount: 1, lastStreakDate: today };
+        });
+        if (changed) import('@/lib/api').then(({ api }) => api.syncPreferences());
+      },
+      
+      hydratePreferences: (prefs) => set((state) => {
+        if (!prefs) return state;
+        return {
+          dueDate: prefs.dueDate ?? state.dueDate,
+          dailyWater: prefs.dailyWater ?? state.dailyWater,
+          tookVitamin: prefs.tookVitamin ?? state.tookVitamin,
+          lastTrackedDate: prefs.lastTrackedDate ?? state.lastTrackedDate,
+          streakCount: prefs.streakCount ?? state.streakCount,
+          lastStreakDate: prefs.lastStreakDate ?? state.lastStreakDate,
+        };
       }),
       
       clearState: () => set({ 

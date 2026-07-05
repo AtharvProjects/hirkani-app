@@ -1,15 +1,10 @@
 import { PregnancyProfile, RecommendationResponse, RecommendationItem } from './api';
 
-export async function getDailyTips(profile: any) {
+export async function getDailyTips(profile: any, count: number = 2) {
   const trimester = profile?.trimester || 2;
   const conditions = profile?.medical_conditions?.length ? profile.medical_conditions.join(", ") : "none";
   const allergies = profile?.allergies?.length ? profile.allergies.join(", ") : "none";
   const diet = profile?.diet_preference || "general";
-
-  const prompt = `Generate exactly 2 short, medically sound daily pregnancy tips for a woman in trimester ${trimester}. Medical conditions: ${conditions}. Allergies: ${allergies}. Diet: ${diet}. Format as a JSON object with a 'tips' key containing a list of exactly two string tips.
-{
-  "tips": ["Tip 1", "Tip 2"]
-}`;
 
   try {
     const response = await fetch("/api/llm/tips", {
@@ -17,7 +12,7 @@ export async function getDailyTips(profile: any) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ profile })
+      body: JSON.stringify({ profile, count })
     });
 
     const result = await response.json();
@@ -29,8 +24,8 @@ export async function getDailyTips(profile: any) {
         textResponse = textResponse.replace(/```/g, "").trim();
       }
       const data = JSON.parse(textResponse);
-      const tips = data.tips && Array.isArray(data.tips) ? data.tips.slice(0, 2) : [];
-      if (tips.length >= 2) return { trimester, tips };
+      const tips = data.tips && Array.isArray(data.tips) ? data.tips.slice(0, count) : [];
+      if (tips.length >= count) return { trimester, tips };
     }
   } catch (e) {
     console.error("Error fetching daily tips:", e);

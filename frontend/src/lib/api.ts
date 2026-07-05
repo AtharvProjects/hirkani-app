@@ -48,6 +48,7 @@ export interface PregnancyProfile {
   medical_conditions?: string[];
   doctor_restrictions?: string;
   trimester?: number;
+  preferences?: any;
 }
 
 export interface RecommendationItem {
@@ -127,7 +128,8 @@ async function storeScan(data: any, scanType: string, payloadStr: string): Promi
     explanation,
     rule_hits: JSON.stringify(evalResult.ruleHits),
     alternatives: JSON.stringify(evalResult.alternatives),
-    references: JSON.stringify(evalResult.references)
+    references: JSON.stringify(evalResult.references),
+    thumbnail_base64: imageUrl
   };
 
   const { data: inserted, error } = await supabase.from('scan_records').insert(dbRecordToInsert).select().single();
@@ -222,11 +224,22 @@ export const api = {
 
   saveProfile: async (body: PregnancyProfile) => {
     const user = await getUser();
+    const state = useAppStore.getState();
+    const prefs = {
+      dueDate: state.dueDate,
+      dailyWater: state.dailyWater,
+      tookVitamin: state.tookVitamin,
+      lastTrackedDate: state.lastTrackedDate,
+      streakCount: state.streakCount,
+      lastStreakDate: state.lastStreakDate
+    };
+    
     const payload = { 
       user_id: user.id, 
       ...body,
       allergies: Array.isArray(body.allergies) ? JSON.stringify(body.allergies) : body.allergies,
       medical_conditions: Array.isArray(body.medical_conditions) ? JSON.stringify(body.medical_conditions) : body.medical_conditions,
+      preferences: prefs
     };
     
     const { data, error } = await supabase
@@ -259,6 +272,27 @@ export const api = {
     return data;
   },
 
+  syncPreferences: async () => {
+    try {
+      const user = await getUser();
+      const state = useAppStore.getState();
+      const prefs = {
+        dueDate: state.dueDate,
+        dailyWater: state.dailyWater,
+        tookVitamin: state.tookVitamin,
+        lastTrackedDate: state.lastTrackedDate,
+        streakCount: state.streakCount,
+        lastStreakDate: state.lastStreakDate
+      };
+      await supabase
+        .from('pregnancy_profiles')
+        .update({ preferences: prefs })
+        .eq('user_id', user.id);
+    } catch (e) {
+      console.error("Failed to sync preferences", e);
+    }
+  },
+
   getProfile: async (): Promise<PregnancyProfile | null> => {
     const user = await getUser();
     const { data, error } = await supabase
@@ -279,6 +313,12 @@ export const api = {
       }
       if (!Array.isArray(data.allergies)) data.allergies = [];
       if (!Array.isArray(data.medical_conditions)) data.medical_conditions = [];
+      if (typeof data.preferences === 'string') {
+        try { data.preferences = JSON.parse(data.preferences); } catch (e) {}
+      }
+      if (data.preferences) {
+        useAppStore.getState().hydratePreferences(data.preferences);
+      }
       
       // Merge name from auth metadata if not in profile
       if (!data.name && user.user_metadata?.full_name) {
@@ -388,7 +428,16 @@ export const api = {
         .order('created_at', { ascending: false });
       if (error) return [];
       
-      useAppStore.getState().setScanHistory(data);
+      const store = useAppStore.getState();
+      store.setScanHistory(data);
+      
+      // Hydrate thumbnails
+      data.forEach(record => {
+        if (record.thumbnail_base64 && record.id) {
+          store.setScanThumbnail(record.id.toString(), record.thumbnail_base64);
+        }
+      });
+      
       return data;
     } catch {
       return [];

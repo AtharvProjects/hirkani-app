@@ -16,6 +16,7 @@ import { api, ScanResult, AutocompleteItem, RecommendationResponse, Recommendati
 import { useAppStore } from "@/store/useAppStore";
 import { useEffect } from "react";
 import { setupPushNotifications } from "@/lib/notifications";
+import { App } from "@capacitor/app";
 
 
 /* ─── Glass Bottom Sheet wrapper ─── */
@@ -90,6 +91,16 @@ function MainHome() {
     api.getProfile().catch(console.error);
     resetHabitsIfNeeded();
     setupPushNotifications();
+
+    const appStateListener = App.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) {
+        useAppStore.getState().resetHabitsIfNeeded();
+      }
+    });
+
+    return () => {
+      appStateListener.then(listener => listener.remove()).catch(() => {});
+    };
   }, []);
 
   useEffect(() => {
