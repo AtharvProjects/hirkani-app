@@ -30,20 +30,21 @@ export function UnifiedScanInterface({
 
   useEffect(() => {
     let active = true;
+    let currentStream: MediaStream | null = null;
 
     async function startCamera() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        currentStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
         });
 
         if (!active) {
-          stream.getTracks().forEach(t => t.stop());
+          currentStream.getTracks().forEach(t => t.stop());
           return;
         }
 
         if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+          videoRef.current.srcObject = currentStream;
           videoRef.current.setAttribute("playsinline", "true");
           await videoRef.current.play();
           setStreamActive(true);
@@ -135,9 +136,11 @@ export function UnifiedScanInterface({
       if (readerRef.current) {
         readerRef.current.reset();
       }
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach(t => t.stop());
+      if (currentStream) {
+        currentStream.getTracks().forEach(t => t.stop());
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
       }
     };
   }, [onBarcodeDetected, paused]);

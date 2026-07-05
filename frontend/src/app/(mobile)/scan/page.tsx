@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
 import { Sparkles, Heart, ScanLine, X, Clock, ChevronRight, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
@@ -95,6 +95,7 @@ function AnimatedLoader() {
 
 function ScanContent() {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const [authed, setAuthed] = useState(false);
   const [profileDone, setProfileDone] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -368,7 +369,7 @@ function ScanContent() {
           onBarcodeDetected={handleQuickBarcode} 
           onImageCaptured={handleImageCaptured} 
           onResult={setResult} 
-          paused={!!result || !!scanError || isSearching || !isAppActive}
+          paused={!!result || !!scanError || isSearching || !isAppActive || pathname !== '/scan'}
         />
 
         {!isSearching && scanHistory.length > 0 && (
