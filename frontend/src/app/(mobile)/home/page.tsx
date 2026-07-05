@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, SlidersHorizontal, Bell, Leaf, Droplets, Pill, Sparkles, ArrowRight, Settings, ScanLine, Clock, Calendar, Check, X, Info, AlertTriangle, CheckCircle2, ChevronRight } from "lucide-react";
 
@@ -14,9 +14,9 @@ import { SafetyBadge } from "@/components/Badge";
 import { GlassCard } from "@/components/GlassCard";
 import { api, ScanResult, AutocompleteItem, RecommendationResponse, RecommendationItem } from "@/lib/api";
 import { useAppStore } from "@/store/useAppStore";
-import { useEffect } from "react";
 import { setupPushNotifications } from "@/lib/notifications";
 import { App } from "@capacitor/app";
+import AnimatedLoadingSkeleton from "@/components/AnimatedLoadingSkeleton";
 
 
 /* ─── Glass Bottom Sheet wrapper ─── */
@@ -77,6 +77,7 @@ function MainHome() {
   // States for pregnancy profile personalization & interactivity
   const [activeCategory, setActiveCategory] = useState("Veggies");
   const [recommendations, setRecommendations] = useState<RecommendationResponse[]>([]);
+  const [isRecommendationsLoading, setIsRecommendationsLoading] = useState(true);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Array<{ id: number; title: string; body: string; type: "info" | "warning" | "success" }>>([]);
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -192,9 +193,11 @@ function MainHome() {
     }
     setNotifications(list);
 
+    setIsRecommendationsLoading(true);
     api.getRecommendations(profile).then((res) => {
       setRecommendations(res);
-    }).catch(console.error);
+    }).catch(console.error)
+      .finally(() => setIsRecommendationsLoading(false));
   }, [profile]);
 
   const performSearch = async (query: string, barcode?: string) => {
@@ -516,44 +519,48 @@ function MainHome() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              {dashboardFilteredItems.length > 0 ? (
-                dashboardFilteredItems.map((item, index) => (
-                  <motion.div
-                    key={item.name}
-                    onClick={() => setSelectedRecItem(item)}
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.08, duration: 0.4, ease: [0.34, 1.1, 0.64, 1] }}
-                    whileTap={{ scale: 0.97 }}
-                    className="glass-card group relative flex flex-col overflow-hidden rounded-[24px] p-4 cursor-pointer"
-                    style={{ marginBottom: 0 }}
-                  >
-                    <div className="absolute inset-0 rounded-[24px]" style={{ background: `linear-gradient(160deg, ${item.bg} 0%, transparent 60%)` }} />
-                    <div className="relative flex h-24 items-center justify-center mb-2 overflow-hidden rounded-[18px]">
-                      <img src={item.img} alt={item.name} className="h-full w-full object-cover rounded-[18px] drop-shadow-xl transition-transform duration-500 group-hover:scale-105" />
-                    </div>
-                    <h3 className="relative z-[2] text-[14px] font-extrabold line-clamp-1" style={{ color: "var(--text-primary)" }}>{item.name}</h3>
-                    <p className="relative z-[2] text-[11px] font-semibold mb-2 line-clamp-1" style={{ color: "var(--text-muted)" }}>{item.sub}</p>
-                    <span
-                      className="relative z-[2] inline-flex items-center self-start rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider"
-                      style={{
-                        background: item.safety === "SAFE" ? "rgba(16,185,129,0.10)" : "rgba(245,158,11,0.10)",
-                        color: item.safety === "SAFE" ? "#065F46" : "#B45309",
-                        border: `1px solid ${item.safety === "SAFE" ? "rgba(16,185,129,0.20)" : "rgba(245,158,11,0.20)"}`,
-                        backdropFilter: "blur(6px)",
-                      }}
+            {isRecommendationsLoading ? (
+              <AnimatedLoadingSkeleton />
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                {dashboardFilteredItems.length > 0 ? (
+                  dashboardFilteredItems.map((item, index) => (
+                    <motion.div
+                      key={item.name}
+                      onClick={() => setSelectedRecItem(item)}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.08, duration: 0.4, ease: [0.34, 1.1, 0.64, 1] }}
+                      whileTap={{ scale: 0.97 }}
+                      className="glass-card group relative flex flex-col overflow-hidden rounded-[24px] p-4 cursor-pointer"
+                      style={{ marginBottom: 0 }}
                     >
-                      {item.safety === "SAFE" ? "✓ SAFE" : "⚠️ CAUTION"}
-                    </span>
-                  </motion.div>
-                ))
-              ) : (
-                <div className="col-span-2 text-center py-6 font-semibold text-[13px]" style={{ color: "var(--text-muted)" }}>
-                  No items match this filter
-                </div>
-              )}
-            </div>
+                      <div className="absolute inset-0 rounded-[24px]" style={{ background: `linear-gradient(160deg, ${item.bg} 0%, transparent 60%)` }} />
+                      <div className="relative flex h-24 items-center justify-center mb-2 overflow-hidden rounded-[18px]">
+                        <img src={item.img} alt={item.name} className="h-full w-full object-cover rounded-[18px] drop-shadow-xl transition-transform duration-500 group-hover:scale-105" />
+                      </div>
+                      <h3 className="relative z-[2] text-[14px] font-extrabold line-clamp-1" style={{ color: "var(--text-primary)" }}>{item.name}</h3>
+                      <p className="relative z-[2] text-[11px] font-semibold mb-2 line-clamp-1" style={{ color: "var(--text-muted)" }}>{item.sub}</p>
+                      <span
+                        className="relative z-[2] inline-flex items-center self-start rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider"
+                        style={{
+                          background: item.safety === "SAFE" ? "rgba(16,185,129,0.10)" : "rgba(245,158,11,0.10)",
+                          color: item.safety === "SAFE" ? "#065F46" : "#B45309",
+                          border: `1px solid ${item.safety === "SAFE" ? "rgba(16,185,129,0.20)" : "rgba(245,158,11,0.20)"}`,
+                          backdropFilter: "blur(6px)",
+                        }}
+                      >
+                        {item.safety === "SAFE" ? "✓ SAFE" : "⚠️ CAUTION"}
+                      </span>
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="col-span-2 text-center py-6 font-semibold text-[13px]" style={{ color: "var(--text-muted)" }}>
+                    No items match this filter
+                  </div>
+                )}
+              </div>
+            )}
 
           </motion.div>
         )}
