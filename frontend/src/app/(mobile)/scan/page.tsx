@@ -17,6 +17,7 @@ import { getMobileState } from "@/components/mobile/auth";
 import { api, ScanResult } from "@/lib/api";
 import { FoodSafetyResult } from "@/components/FoodSafetyResult";
 import { useAppStore } from "@/store/useAppStore";
+import { App } from "@capacitor/app";
 
 function AnimatedLoader() {
   const [mounted, setMounted] = useState(false);
@@ -101,6 +102,7 @@ function ScanContent() {
   const [scanError, setScanError] = useState<{title: string, message: string} | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [isAppActive, setIsAppActive] = useState(true);
   const scanHistory = useAppStore((state) => state.scanHistory);
   const scanThumbnails = useAppStore((state) => state.scanThumbnails);
 
@@ -120,6 +122,24 @@ function ScanContent() {
         api.history().catch(console.error);
       }
     });
+
+    const checkVisibility = () => {
+      setIsAppActive(document.visibilityState === "visible");
+    };
+    
+    document.addEventListener("visibilitychange", checkVisibility);
+    
+    let appListener: any;
+    if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) {
+      App.addListener('appStateChange', ({ isActive }) => {
+        setIsAppActive(isActive && document.visibilityState === "visible");
+      }).then(l => appListener = l).catch(() => {});
+    }
+
+    return () => {
+      document.removeEventListener("visibilitychange", checkVisibility);
+      if (appListener) appListener.remove();
+    };
   }, []);
 
   useEffect(() => {
@@ -348,7 +368,7 @@ function ScanContent() {
           onBarcodeDetected={handleQuickBarcode} 
           onImageCaptured={handleImageCaptured} 
           onResult={setResult} 
-          paused={!!result || !!scanError || isSearching}
+          paused={!!result || !!scanError || isSearching || !isAppActive}
         />
 
         {!isSearching && scanHistory.length > 0 && (
