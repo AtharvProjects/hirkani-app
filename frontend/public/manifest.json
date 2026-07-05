@@ -1,0 +1,25 @@
+{
+  "name": "Hirkani - Pregnancy Food Safety",
+  "short_name": "Hirkani",
+  "description": "AI-powered pregnancy food safety assistant that instantly checks ingredients and provides personalized recommendations.",
+  "start_url": "/home",
+  "display": "standalone",
+  "background_color": "#FFEFF3",
+  "theme_color": "#F4587A",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["health", "lifestyle", "medical"],
+  "dir": "ltr",
+  "lang": "en-US"
+}

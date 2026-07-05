@@ -17,8 +17,7 @@ export interface PregnancyProfile {
 }
 
 function containsAny(text: string, terms: string[]): boolean {
-  const t = text.toLowerCase();
-  return terms.some((term) => t.includes(term.toLowerCase()));
+  return terms.some((term) => new RegExp(`\\b${term}\\b`, 'i').test(text));
 }
 
 export function evaluatePregnancySafety(
@@ -231,16 +230,42 @@ export function evaluatePregnancySafety(
   }
 
   // Custom insights
-  let ironText = "Supports oxygen transport and baby brain development.";
-  if (hasAnemia) {
-    ironText += " (Highly recommended for your anemia profile)";
+  // Dynamic Custom insights
+  let nutrientInsights: { name: string, benefit: string }[] = [];
+  
+  if (foodNameLower.includes("broccoli") || foodNameLower.includes("spinach") || foodNameLower.includes("green")) {
+    nutrientInsights.push({ name: "Folic Acid", benefit: "Helps neural tube development." });
+    nutrientInsights.push({ name: "Vitamin K", benefit: "Supports healthy blood clotting." });
+    nutrientInsights.push({ name: "Fiber", benefit: "Prevents pregnancy constipation." });
+  } else if (foodNameLower.includes("milk") || foodNameLower.includes("cheese") || foodNameLower.includes("dairy") || foodNameLower.includes("curd")) {
+    nutrientInsights.push({ name: "Calcium", benefit: "Supports strong bones for mother and baby." });
+    nutrientInsights.push({ name: "Protein", benefit: "Essential for fetal tissue growth." });
+    nutrientInsights.push({ name: "Vitamin D", benefit: "Helps calcium absorption." });
+  } else if (foodNameLower.includes("papaya")) {
+    nutrientInsights.push({ name: "Vitamin C", benefit: "Boosts immune system (if ripe)." });
+    nutrientInsights.push({ name: "Folate", benefit: "Good for cell growth." });
+    nutrientInsights.push({ name: "Fiber", benefit: "Aids digestion." });
+  } else if (foodNameLower.includes("meat") || foodNameLower.includes("chicken") || foodNameLower.includes("beef")) {
+    let ironText = "Supports oxygen transport and baby brain development.";
+    if (hasAnemia) ironText += " (Highly recommended for your anemia profile)";
+    nutrientInsights.push({ name: "Iron", benefit: ironText });
+    nutrientInsights.push({ name: "Protein", benefit: "Crucial for fetal development." });
+    nutrientInsights.push({ name: "Zinc", benefit: "Supports immune function." });
+  } else if (foodNameLower.includes("sushi") || foodNameLower.includes("fish") || foodNameLower.includes("salmon")) {
+    nutrientInsights.push({ name: "Omega-3", benefit: "Crucial for fetal brain development." });
+    nutrientInsights.push({ name: "Protein", benefit: "Important for cell growth." });
+    nutrientInsights.push({ name: "Vitamin B12", benefit: "Supports nerve function." });
+  } else if (foodNameLower.includes("noodle") || foodNameLower.includes("maggi") || foodNameLower.includes("pizza") || foodNameLower.includes("burger")) {
+    nutrientInsights.push({ name: "Carbohydrates", benefit: "Provides quick energy." });
+    nutrientInsights.push({ name: "Sodium", benefit: "Watch intake to prevent swelling." });
+  } else {
+    // Generic fallback for other foods
+    let ironText = "Supports oxygen transport and baby brain development.";
+    if (hasAnemia) ironText += " (Highly recommended for your anemia profile)";
+    nutrientInsights.push({ name: "Iron", benefit: ironText });
+    nutrientInsights.push({ name: "Calcium", benefit: "Supports strong bones." });
+    nutrientInsights.push({ name: "Folic Acid", benefit: "Helps neural tube development." });
   }
-
-  const nutrientInsights = [
-    { name: "Iron", benefit: ironText },
-    { name: "Folic Acid", benefit: "Helps neural tube development." },
-    { name: "Calcium", benefit: "Supports strong bones for mother and baby." },
-  ];
 
   // Alternatives
   let alternatives: string[] = [];

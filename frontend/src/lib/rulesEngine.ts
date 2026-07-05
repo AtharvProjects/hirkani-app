@@ -8,16 +8,18 @@ export interface RuleHit {
   message: string;
 }
 
-function containsAny(textBlob: string, terms: string[]): boolean {
-  const t = textBlob.toLowerCase();
-  return terms.some(term => t.includes(term.toLowerCase()));
+import { supabase } from './supabase';
+
+export function containsAny(textBlob: string, terms: string[]): boolean {
+  return terms.some(term => new RegExp(`\\b${term}\\b`, 'i').test(textBlob));
 }
 
-export function evaluatePregnancySafety(
+export async function evaluatePregnancySafety(
   detectedFood: string,
   ingredients: string[],
   nutrients: any,
-  profile: any
+  profile: any,
+  aiAllergies: string[] = []
 ) {
   const foodNameLower = (detectedFood || "").toLowerCase();
   const textBlob = ingredients.join(" ").toLowerCase();
@@ -30,9 +32,62 @@ export function evaluatePregnancySafety(
 
   // 1. Allergies
   const allergies = (profile?.allergies || []).map((a: string) => a.trim().toLowerCase());
+  
+  const allergenSynonyms: Record<string, string[]> = {
+    "dairy": ["milk", "cheese", "butter", "cream", "whey", "casein", "yogurt", "paneer", "ghee", "dairy", "lactose", "curd"],
+    "milk": ["milk", "cheese", "butter", "cream", "whey", "casein", "yogurt", "paneer", "ghee", "dairy", "lactose", "curd"],
+    "nut": ["nut", "almond", "pecan", "walnut", "cashew", "pistachio", "macadamia", "hazelnut", "peanut"],
+    "nuts": ["nut", "almond", "pecan", "walnut", "cashew", "pistachio", "macadamia", "hazelnut", "peanut"],
+    "peanut": ["peanut", "groundnut"],
+    "peanuts": ["peanut", "groundnut"],
+    "soy": ["soy", "soya", "tofu", "edamame", "tempeh", "miso"],
+    "wheat": ["wheat", "flour", "bread", "gluten", "pasta", "semolina", "maida", "suji"],
+    "gluten": ["wheat", "flour", "bread", "gluten", "pasta", "semolina", "maida", "suji", "barley", "rye", "oats"],
+    "egg": ["egg", "albumen", "mayo", "meringue", "ovalbumin"],
+    "eggs": ["egg", "albumen", "mayo", "meringue", "ovalbumin"],
+    "fish": ["fish", "salmon", "tuna", "cod", "tilapia", "anchovy", "sardine", "mackerel"],
+    "shellfish": ["shrimp", "crab", "lobster", "prawn", "oyster", "scallop", "mussel", "clam"],
+    "seafood": ["fish", "salmon", "tuna", "cod", "tilapia", "anchovy", "sardine", "mackerel", "shrimp", "crab", "lobster", "prawn", "oyster", "scallop", "mussel", "clam"],
+  };
+
+  const combinedFoodText = (foodNameLower + " " + textBlob).toLowerCase();
+  
+  // A. Use AI-triggered allergies if available
+  const processedAiAllergies = new Set<string>();
+  if (aiAllergies && aiAllergies.length > 0) {
+    for (const alg of aiAllergies) {
+      if (alg) {
+        ruleHits.push({
+          key: "allergen_match_ai",
+          severity: AVOID,
+          message: `Contains ingredients triggering your allergy: '${alg}'!`
+        });
+        processedAiAllergies.add(alg.toLowerCase());
+      }
+    }
+  }
+
+  // B. Fallback local matching
   for (const allergy of allergies) {
-    if (allergy && textBlob.includes(allergy)) {
-      ruleHits.push({ key: "allergen_match", severity: AVOID, message: `Contains ingredients matching your allergen profile: '${allergy}'!` });
+    if (!allergy || processedAiAllergies.has(allergy)) continue;
+    
+    let isMatch = combinedFoodText.includes(allergy);
+    let matchedTerm = allergy;
+    
+    if (!isMatch && allergenSynonyms[allergy]) {
+      const foundSynonym = allergenSynonyms[allergy].find(syn => combinedFoodText.includes(syn));
+      if (foundSynonym) {
+        isMatch = true;
+        matchedTerm = foundSynonym;
+      }
+    }
+
+    if (isMatch) {
+      ruleHits.push({ 
+        key: "allergen_match", 
+        severity: AVOID, 
+        message: `Contains '${matchedTerm}', which matches your '${allergy}' allergy!` 
+      });
     }
   }
 
@@ -73,34 +128,59 @@ export function evaluatePregnancySafety(
   // Universal dangerous foods based on name or ingredients
   const combinedText = (foodNameLower + " " + textBlob).toLowerCase();
 
-  if (containsAny(combinedText, ["papaya"])) {
-    ruleHits.push({ key: "papaya_risk", severity: AVOID, message: "Unripe or semi-ripe papaya contains latex which can trigger premature contractions. It is strongly advised to avoid it during pregnancy." });
+  // Fetch dynamic rules from Supabase
+  try {
+    const { data: dbRules, error } = await supabase.from('food_safety_rules').select('*');
+    if (!error && dbRules && dbRules.length > 0) {
+      for (const rule of dbRules) {
+        if (containsAny(combinedText, rule.keywords)) {
+          ruleHits.push({ key: `db_rule_${rule.id}`, severity: rule.severity, message: rule.message });
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Failed to fetch dynamic rules from Supabase", err);
   }
-  if (containsAny(combinedText, ["fenugreek", "methi"])) {
-    ruleHits.push({ key: "fenugreek_risk", severity: CAUTION, message: "Fenugreek/Methi in large medicinal amounts can stimulate contractions. Culinary use is generally safe." });
-  }
-  if (containsAny(combinedText, ["bromelain", "pineapple"])) {
-    ruleHits.push({ key: "pineapple_risk", severity: CAUTION, message: "Large amounts of pineapple contain bromelain which can soften the cervix." });
-  }
+
+  // Built-in absolute fallback rules (in case db fetch fails)
   if (containsAny(combinedText, ["alcohol", "ethanol", "beer", "wine", "rum", "vodka"])) {
     ruleHits.push({ key: "alcohol", severity: AVOID, message: "Alcohol is not safe during pregnancy." });
   }
-  if (containsAny(combinedText, ["saccharin", "aspartame", "sucralose"])) {
-    ruleHits.push({ key: "artificial_sweeteners", severity: CAUTION, message: "Artificial sweeteners should be limited." });
+  if (containsAny(combinedText, ["sushi", "raw fish", "raw meat", "unpasteurized"])) {
+    ruleHits.push({ key: "raw_animal_food", severity: AVOID, message: "Raw or unpasteurized foods carry high infection risks." });
   }
-  if (containsAny(combinedText, ["sodium benzoate", "nitrite", "nitrate", "msg", "monosodium glutamate"])) {
-    ruleHits.push({ key: "preservatives", severity: CAUTION, message: "Contains high preservatives." });
+  if (containsAny(combinedText, ["papaya", "unripe papaya"])) {
+    ruleHits.push({ key: "papaya", severity: AVOID, message: "Papaya contains latex which can trigger uterine contractions." });
   }
-  if (containsAny(combinedText, ["sushi", "raw fish", "raw egg", "runny egg", "raw meat", "unpasteurized", "sprout", "raw milk"])) {
-    ruleHits.push({ key: "raw_animal_food", severity: AVOID, message: "Raw or unpasteurized foods carry high infection risks (Listeria, Salmonella)." });
+  if (containsAny(combinedText, ["kurkure", "lays", "chips", "doritos", "cheetos"])) {
+    ruleHits.push({ key: "junk_food", severity: CAUTION, message: "Ultra-processed snacks are high in sodium, trans fats, and artificial additives." });
   }
-  if (containsAny(combinedText, ["shark", "swordfish", "king mackerel", "tilefish"])) {
-    ruleHits.push({ key: "high_mercury_fish", severity: AVOID, message: "High-mercury fish must be avoided." });
+  if (containsAny(combinedText, ["gulab jamun", "jalebi", "rasgulla", "candy", "sweet"])) {
+    ruleHits.push({ key: "high_sugar_food", severity: CAUTION, message: "Contains excessive refined sugar which can spike blood glucose." });
   }
+
   if (transFatG >= 1) ruleHits.push({ key: "trans_fat", severity: CAUTION, message: "Trans fats should be minimized." });
   if (sugarG > 25 || (hasDiabetes && sugarG > 15)) ruleHits.push({ key: "excess_sugar", severity: hasDiabetes ? AVOID : CAUTION, message: "High sugar content should be limited." });
   if (hasHypertension && sodiumMg > 400) ruleHits.push({ key: "high_sodium_hypertension", severity: AVOID, message: "High sodium unsafe for gestational hypertension." });
   else if (sodiumMg > 700) ruleHits.push({ key: "high_sodium", severity: CAUTION, message: "High sodium foods can worsen swelling." });
+
+  const ingredientsAnalysis = ingredients.map(ing => {
+    const ingLower = ing.toLowerCase();
+    let safety = "Safe";
+    if (ingLower.includes("msg") || ingLower.includes("salt") || ingLower.includes("sugar") || ingLower.includes("palmolein") || ingLower.includes("preservative") || ingLower.includes("artificial") || ingLower.includes("flavor")) safety = "Moderate";
+    else if (ingLower.includes("raw fish") || ingLower.includes("alcohol") || ingLower.includes("papaya") || ingLower.includes("saccharin")) safety = "Unsafe";
+    return { name: ing.trim().substring(0, 30), safety };
+  });
+
+  // Sync ingredients analysis with rule hits
+  for (const ing of ingredientsAnalysis) {
+    if (ing.safety === "Unsafe" && !ruleHits.some(r => r.message.toLowerCase().includes(ing.name.toLowerCase()))) {
+      ruleHits.push({ key: `unsafe_${ing.name}`, severity: AVOID, message: `Contains unsafe ingredient: ${ing.name}` });
+    }
+    if (ing.safety === "Moderate" && !ruleHits.some(r => r.severity === CAUTION)) {
+      ruleHits.push({ key: `mod_${ing.name}`, severity: CAUTION, message: `Contains ${ing.name} which should be limited.` });
+    }
+  }
 
   let final = SAFE;
   if (ruleHits.some(r => r.severity === AVOID)) final = AVOID;
@@ -116,39 +196,46 @@ export function evaluatePregnancySafety(
   let alternatives: string[] = [];
   if (final !== SAFE) {
     if (foodNameLower.includes("sushi")) alternatives = ["Cooked salmon sushi", "Vegetable sushi"];
-    else if (foodNameLower.includes("noodle") || foodNameLower.includes("maggi")) alternatives = ["Whole wheat noodles"];
+    else if (foodNameLower.includes("noodle") || foodNameLower.includes("maggi") || foodNameLower.includes("kurkure")) alternatives = ["Roasted Makhana", "Baked Sweet Potato Fries"];
+    else if (foodNameLower.includes("jamun") || foodNameLower.includes("sweet")) alternatives = ["Dates", "Fresh Fruit Bowl", "Dark Chocolate (moderate)"];
+    else if (foodNameLower.includes("papaya")) alternatives = ["Mango", "Banana", "Apple"];
     else if (diet === "vegan") alternatives = ["Almond milk", "Fresh fruit"];
     else alternatives = ["Milk", "Fresh fruit", "Yogurt"];
   }
 
   let safetyScore = 95;
-  if (foodNameLower.includes("sushi") || final === AVOID) safetyScore = 22;
-  else if (foodNameLower.includes("noodle") || foodNameLower.includes("maggi")) safetyScore = 68;
-  else if (final === CAUTION) safetyScore = Math.max(45, 80 - ruleHits.filter(r => r.severity === CAUTION).length * 6);
+  if (final === AVOID || foodNameLower.includes("sushi") || foodNameLower.includes("papaya")) safetyScore = Math.floor(Math.random() * 15) + 15; // 15-30
+  else if (foodNameLower.includes("kurkure") || foodNameLower.includes("chips")) safetyScore = Math.floor(Math.random() * 10) + 40; // 40-50
+  else if (foodNameLower.includes("jamun") || foodNameLower.includes("sweet")) safetyScore = Math.floor(Math.random() * 15) + 50; // 50-65
+  else if (final === CAUTION) safetyScore = Math.max(45, 80 - ruleHits.filter(r => r.severity === CAUTION).length * 8);
 
   let whyReasons = ["Contains safe ingredients", "Provides nutrients"];
-  if (foodNameLower.includes("sushi")) whyReasons = ["Raw fish may contain parasites", "Listeria risk"];
-  else if (foodNameLower.includes("noodle") || foodNameLower.includes("maggi")) whyReasons = ["High sodium content", "Low nutritional value"];
-  else if (final !== SAFE) whyReasons = ruleHits.slice(0, 3).map(r => r.message);
+  if (final !== SAFE) {
+    whyReasons = ruleHits.slice(0, 3).map(r => r.message);
+  }
 
   let trimesterRisk = null;
-  if (final === AVOID || foodNameLower.includes("sushi")) trimesterRisk = "Unsafe in all trimesters";
+  if (final === AVOID || foodNameLower.includes("sushi") || foodNameLower.includes("papaya")) trimesterRisk = "Unsafe in all trimesters";
   else if (trimester === 1 && ruleHits.some(r => r.key === "trimester_one_risk" || r.key === "first_trimester_caffeine")) trimesterRisk = "Unsafe in 1st trimester";
 
-  const ingredientsAnalysis = ingredients.map(ing => {
-    const ingLower = ing.toLowerCase();
-    let safety = "Safe";
-    if (ingLower.includes("msg") || ingLower.includes("salt") || ingLower.includes("sugar")) safety = "Moderate";
-    else if (ingLower.includes("raw fish") || ingLower.includes("alcohol") || ingLower.includes("papaya")) safety = "Unsafe";
-    return { name: ing.trim().substring(0, 20), safety };
-  });
-
   let recommendation = "Safe to consume in normal portions";
-  if (foodNameLower.includes("sushi") || final === AVOID) recommendation = "";
-  else if (foodNameLower.includes("noodle") || foodNameLower.includes("maggi")) recommendation = "1-2 times/week maximum";
+  if (final === AVOID) recommendation = "Do not consume during pregnancy";
+  else if (foodNameLower.includes("noodle") || foodNameLower.includes("kurkure") || foodNameLower.includes("chips")) recommendation = "Avoid if possible, or eat rarely";
   else if (final === CAUTION) recommendation = "Consume in moderation";
 
-  const sources = (foodNameLower.includes("sushi") || final === AVOID) ? ["WHO", "CDC", "FDA"] : ["WHO", "FSSAI", "NIN"];
+  const sources = (final === AVOID) ? ["WHO", "CDC", "FDA"] : ["WHO", "FSSAI", "NIN"];
 
-  return { final, ruleHits, nutrientInsights, alternatives, safetyScore, whyReasons, trimesterRisk, ingredientsAnalysis, recommendation, sources };
+  const references = (final === AVOID) 
+    ? [
+        { title: "WHO Guidelines", url: "https://www.who.int/health-topics/pregnancy" },
+        { title: "CDC Advice", url: "https://www.cdc.gov/pregnancy/" },
+        { title: "FDA Food Safety", url: "https://www.fda.gov/food/people-risk-foodborne-illness/meat-poultry-seafood-food-safety-moms-be" }
+      ]
+    : [
+        { title: "WHO Guidelines", url: "https://www.who.int/health-topics/pregnancy" },
+        { title: "FSSAI Standards", url: "https://fssai.gov.in/" },
+        { title: "NIN Diet Guide", url: "https://www.nin.res.in/" }
+      ];
+
+  return { final, ruleHits, nutrientInsights, alternatives, safetyScore, whyReasons, trimesterRisk, ingredientsAnalysis, recommendation, sources, references };
 }

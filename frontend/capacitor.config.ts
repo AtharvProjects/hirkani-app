@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.hirkani.app',
-  appName: 'hirkani',
+  appName: 'Hirkani',
   webDir: 'out',
   server: {
     androidScheme: 'https'

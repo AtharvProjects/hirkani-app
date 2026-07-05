@@ -12,15 +12,60 @@ const tabs = [
   { href: "/profile",  label: "Profile",  icon: UserRound },
 ];
 
+import { useAppStore } from "@/store/useAppStore";
+import { useState, useEffect } from "react";
+
+export function useKeyboardOpen() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleResize = () => {
+      // If the window inner height is less than 80% of the screen height, the keyboard is likely open.
+      if (window.screen && window.innerHeight < window.screen.height * 0.80) {
+        setIsOpen(true);
+      } else {
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", handleResize);
+    }
+    
+    // Check initial state
+    handleResize();
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", handleResize);
+      }
+    };
+  }, []);
+
+  return isOpen;
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { profile } = useAppStore();
+  const isProfileIncomplete = !profile;
+  const isKeyboardOpen = useKeyboardOpen();
 
   return (
     <div
       className="mobile-shell relative"
       style={{ margin: "0 auto", display: "flex", flexDirection: "column", height: "100dvh" }}
     >
-      {/* Layered gradient background (removed to allow glass3d global style to show through) */}
+      {/* ── Premium Aurora Animated Background ── */}
+      <div className="aurora-bg">
+        <div className="aurora-blob-3" />
+        <div className="aurora-blob-4" />
+        <div className="aurora-noise" />
+      </div>
 
       {/* Scrollable content area */}
       <div className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden px-5 py-5 pb-6">
@@ -30,18 +75,47 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           transition={{ duration: 0.42, ease: [0.34, 1.1, 0.64, 1] }}
         >
           {children}
-          <div className="h-28 w-full shrink-0" />
+          <div className="h-32 w-full shrink-0" />
         </motion.div>
       </div>
 
-      {/* ── Floating Navigation Bar ── */}
-      <nav
-        className="absolute bottom-5 left-1/2 z-50 -translate-x-1/2"
-        style={{ width: "calc(100% - 32px)" }}
+      {/* ── Floating Glass Navigation Bar ── */}
+      {!isProfileIncomplete && !isKeyboardOpen && (
+        <nav
+          className="absolute z-50"
+        style={{
+          bottom: "20px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: "calc(100% - 40px)",
+        }}
       >
         <div
-          className="glass-card-strong relative flex items-center justify-between gap-1 rounded-[36px] px-2 py-2"
+          className="relative flex items-center justify-between gap-1 px-2 py-2"
+          style={{
+            borderRadius: "32px",
+            background: "rgba(255, 255, 255, 0.22)",
+            backdropFilter: "blur(28px)",
+            WebkitBackdropFilter: "blur(28px)",
+            border: "1px solid rgba(255, 255, 255, 0.40)",
+            boxShadow: `
+              0 8px 32px rgba(0, 0, 0, 0.08),
+              0 2px 8px rgba(0, 0, 0, 0.04),
+              inset 0 1px 0 rgba(255, 255, 255, 0.55),
+              inset 0 -1px 0 rgba(255, 255, 255, 0.10),
+              inset 0 0 14px 4px rgba(255, 255, 255, 0.06)
+            `,
+          }}
         >
+          {/* Top edge highlight */}
+          <div
+            className="absolute top-0 left-0 right-0 h-[1px] pointer-events-none"
+            style={{
+              borderRadius: "32px 32px 0 0",
+              background: "linear-gradient(90deg, transparent 10%, rgba(255,255,255,0.7) 50%, transparent 90%)",
+            }}
+          />
+
           {tabs.map((tab) => {
             const active = pathname?.startsWith(tab.href);
             const Icon = tab.icon;
@@ -49,25 +123,43 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={tab.href}
                 href={tab.href}
-                className="relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 transition-transform active:scale-90"
+                className="relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 transition-transform active:scale-90"
               >
                 {active && (
                   <motion.span
                     layoutId="nav-active-pill"
-                    className="absolute inset-0 rounded-[28px]"
+                    className="absolute inset-0"
                     style={{
+                      borderRadius: "26px",
                       background: "linear-gradient(135deg, #F4587A 0%, #FF7961 100%)",
-                      boxShadow: "0 6px 20px rgba(244, 88, 122, 0.50)",
+                      boxShadow: `
+                        0 6px 20px rgba(244, 88, 122, 0.40),
+                        inset 0 1px 0 rgba(255,255,255,0.20)
+                      `,
                     }}
                     transition={{ type: "spring", stiffness: 500, damping: 38, mass: 0.7 }}
                   />
                 )}
-                <Icon
-                  size={20}
-                  className="relative z-10 transition-colors duration-200"
-                  style={{ color: active ? "#fff" : "var(--text-muted)" }}
-                />
-                <span
+                <motion.div
+                  animate={{
+                    scale: active ? 1.15 : 1,
+                    y: active ? -1 : 0,
+                  }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  className="relative z-10"
+                >
+                  <Icon
+                    size={20}
+                    className="transition-colors duration-200"
+                    style={{ color: active ? "#fff" : "var(--text-muted)" }}
+                  />
+                </motion.div>
+                <motion.span
+                  animate={{
+                    opacity: active ? 1 : 0.7,
+                    scale: active ? 1 : 0.95,
+                  }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
                   className="relative z-10 text-[10px] leading-none transition-colors duration-200"
                   style={{
                     color: active ? "#fff" : "var(--text-muted)",
@@ -75,12 +167,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   }}
                 >
                   {tab.label}
-                </span>
+                </motion.span>
               </Link>
             );
           })}
         </div>
       </nav>
+      )}
     </div>
   );
 }

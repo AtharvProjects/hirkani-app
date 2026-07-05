@@ -97,26 +97,18 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
 
   return (
     <>
-      <div
-        className="relative overflow-hidden w-full mb-5 rounded-[28px]"
-        style={{
-          background: "var(--glass)",
-          backdropFilter: "blur(24px)",
-          WebkitBackdropFilter: "blur(24px)",
-          border: "1px solid var(--glass-border)",
-          boxShadow: "var(--glass-shadow)",
-        }}
-      >
-        <div className="absolute -top-12 -right-12 h-40 w-40 rounded-full opacity-20 pointer-events-none"
-          style={{ background: "radial-gradient(circle, var(--pink-hot), transparent)" }} />
-        <div className="absolute -bottom-8 -left-8 h-28 w-28 rounded-full opacity-15 pointer-events-none"
-          style={{ background: "radial-gradient(circle, var(--peach), transparent)" }} />
+      <div className="glass-card-premium w-full mb-5" style={{ padding: 0 }}>
+        {/* Animated aura blobs behind the baby */}
+        <div className="absolute -top-12 -right-12 h-40 w-40 rounded-full opacity-25 pointer-events-none animate-pulse-glow"
+          style={{ background: "radial-gradient(circle, var(--pink-hot), transparent)", filter: "blur(20px)" }} />
+        <div className="absolute -bottom-8 -left-8 h-28 w-28 rounded-full opacity-20 pointer-events-none animate-float"
+          style={{ background: "radial-gradient(circle, var(--peach), transparent)", filter: "blur(20px)" }} />
 
         <div className="flex items-center justify-between px-5 pt-5 pb-3 relative z-10">
           <button
             onClick={() => setWeekOffset(o => Math.max(o - 1, -(pregnancyWeek - 1)))}
-            className="flex h-9 w-9 items-center justify-center rounded-full transition-all active:scale-90"
-            style={{ background: "rgba(244,88,122,0.10)", border: "1px solid rgba(244,88,122,0.18)" }}
+            className="flex h-9 w-9 items-center justify-center rounded-full transition-transform active:scale-[0.85]"
+            style={{ background: "rgba(244,88,122,0.10)", border: "1px solid rgba(244,88,122,0.20)", backdropFilter: "blur(8px)" }}
           >
             <ChevronLeft size={16} style={{ color: "var(--pink-hot)" }} />
           </button>
@@ -125,15 +117,15 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
             <div className="text-[10px] font-extrabold uppercase tracking-[0.22em]" style={{ color: "var(--text-muted)" }}>
               {trimesterLabel}
             </div>
-            <div className="text-[20px] font-black tracking-tight" style={{ color: "var(--text-primary)" }}>
+            <div className="text-[22px] font-black tracking-tight font-display" style={{ color: "var(--text-primary)" }}>
               Week {displayWeek}
             </div>
           </div>
 
           <button
             onClick={() => setWeekOffset(o => Math.min(o + 1, 42 - pregnancyWeek))}
-            className="flex h-9 w-9 items-center justify-center rounded-full transition-all active:scale-90"
-            style={{ background: "rgba(244,88,122,0.10)", border: "1px solid rgba(244,88,122,0.18)" }}
+            className="flex h-9 w-9 items-center justify-center rounded-full transition-transform active:scale-[0.85]"
+            style={{ background: "rgba(244,88,122,0.10)", border: "1px solid rgba(244,88,122,0.20)", backdropFilter: "blur(8px)" }}
           >
             <ChevronRight size={16} style={{ color: "var(--pink-hot)" }} />
           </button>
@@ -142,18 +134,19 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
         <div className="flex items-center justify-between px-4 pb-3 relative z-10">
           {calendarDays.map((day) => (
             <div key={day.offset} className="flex flex-col items-center gap-1">
-              <span className={`text-[9px] font-extrabold uppercase tracking-wider ${day.isToday ? 'text-[#F4587A]' : ''}`}
+              <span className={`text-[9px] font-extrabold uppercase tracking-wider transition-colors duration-300 ${day.isToday ? 'text-[var(--pink-hot)]' : ''}`}
                 style={{ color: day.isToday ? undefined : "var(--text-muted)" }}>
                 {day.dayLabel}
               </span>
               <div
-                className={`w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-bold transition-all ${
-                  day.isToday ? 'shadow-md' : ''
+                className={`w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-bold transition-all duration-300 ${
+                  day.isToday ? 'shadow-md scale-110' : ''
                 }`}
                 style={day.isToday ? {
-                  background: "linear-gradient(135deg, #f6d365, #fda085)",
+                  background: "linear-gradient(135deg, var(--pink-hot), var(--coral))",
                   color: "#fff",
                   fontWeight: 900,
+                  boxShadow: "0 4px 12px rgba(244,88,122,0.35)",
                 } : {
                   color: "var(--text-secondary)",
                 }}
@@ -165,25 +158,25 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
         </div>
 
         <div className="flex flex-col items-center px-5 pt-2 pb-5 relative z-10">
-          <div className="text-[9px] font-extrabold uppercase tracking-[0.25em] mb-2"
+          <div className="text-[10px] font-extrabold uppercase tracking-[0.25em] mb-2"
             style={{ color: trimesterColor }}>
             {babyStage.label}
           </div>
 
           <motion.div
             key={babyStage.image}
-            initial={{ scale: 0.85, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
+            initial={{ scale: 0.85, opacity: 0, y: 10 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
             className="relative mb-3 flex items-center justify-center"
             style={{ width: `${babyStage.sizePx}px`, height: `${babyStage.sizePx}px` }}
           >
             <div className="absolute inset-[-20px] rounded-full"
-              style={{ background: `radial-gradient(circle, rgba(255,200,210,0.35), transparent 70%)` }} />
+              style={{ background: `radial-gradient(circle, rgba(255,200,210,0.40), transparent 70%)` }} />
             <img
               src={babyStage.image}
               alt={`Baby at week ${displayWeek}`}
-              className="w-full h-full object-contain drop-shadow-xl relative z-10"
+              className="w-full h-full object-contain drop-shadow-2xl relative z-10"
               style={{
                 WebkitMaskImage: "radial-gradient(circle at center, black 45%, transparent 75%)",
                 maskImage: "radial-gradient(circle at center, black 45%, transparent 75%)",
@@ -191,28 +184,28 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
             />
           </motion.div>
 
-          <h2 className="text-[22px] font-black tracking-tight mb-1" style={{ color: "var(--text-primary)" }}>
+          <h2 className="text-[24px] font-black tracking-tight mb-1 font-display" style={{ color: "var(--text-primary)" }}>
             {displayWeek} weeks
           </h2>
-          <p className="text-[13px] font-bold mb-3" style={{ color: "var(--text-secondary)" }}>
-            Baby is the size of a <span style={{ color: "var(--pink-hot)" }}>{milestone.size}</span>
+          <p className="text-[14px] font-bold mb-4" style={{ color: "var(--text-secondary)" }}>
+            Baby is the size of a <span style={{ color: "var(--pink-hot)", fontWeight: 900 }}>{milestone.size}</span>
           </p>
 
-          <div className="w-full mb-4">
-            <div className="flex justify-between text-[10px] font-bold mb-1.5" style={{ color: "var(--text-muted)" }}>
+          <div className="w-full mb-5">
+            <div className="flex justify-between text-[10px] font-extrabold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
               <span>Week 1</span>
               <span>{daysRemaining > 0 ? `${daysRemaining} days to go` : "Due any day! 🎉"}</span>
               <span>Week 40</span>
             </div>
-            <div className="h-2 w-full rounded-full overflow-hidden" style={{ background: "rgba(244,88,122,0.12)" }}>
+            <div className="h-2.5 w-full rounded-full overflow-hidden relative" style={{ background: "rgba(255,255,255,0.40)", border: "1px solid rgba(255,255,255,0.60)", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.05)" }}>
               <motion.div
-                className="h-full rounded-full"
+                className="absolute left-0 top-0 bottom-0 rounded-full"
                 initial={{ width: 0 }}
                 animate={{ width: `${progressPercent}%` }}
-                transition={{ duration: 1, ease: "easeOut" }}
+                transition={{ duration: 1.2, ease: [0.34, 1.1, 0.64, 1] }}
                 style={{
                   background: "linear-gradient(90deg, var(--pink-hot), var(--coral))",
-                  boxShadow: "0 2px 8px rgba(244,88,122,0.40)",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.30)",
                 }}
               />
             </div>
@@ -220,9 +213,9 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
 
           <button
             onClick={() => setShowDetails(true)}
-            className="btn-primary w-full h-[48px] text-[14px]"
+            className="btn-ghost w-full h-[52px] text-[15px]"
           >
-            <Calendar size={16} className="mr-2" />
+            <Calendar size={17} className="mr-2" />
             View Pregnancy Details
           </button>
         </div>
@@ -231,108 +224,109 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
       <Portal>
         <AnimatePresence>
           {showDetails && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[100] bg-black/45"
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-[100] flex items-end justify-center" 
+              style={{ background: "rgba(0,0,0,0.35)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", willChange: "opacity" }}
+            >
+              <div
+                className="absolute inset-0"
                 onClick={() => setShowDetails(false)}
               />
               <motion.div
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 220 }}
-                className="fixed bottom-0 left-0 right-0 z-[120] flex justify-center"
+                transition={{ type: "spring", damping: 28, stiffness: 240 }}
+                className="relative w-full max-w-[440px] rounded-t-[32px] p-6 pb-6 border-t border-white/40 shadow-2xl flex flex-col max-h-[85vh]"
+                style={{ background: "rgba(255, 255, 255, 0.75)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", willChange: "transform" }}
               >
-                <div
-                  className="relative w-full max-w-[440px] rounded-t-[32px] p-6 pb-6 border-t border-white/20 shadow-2xl flex flex-col max-h-[82vh]"
-                  style={{ background: "rgba(255, 255, 255, 0.92)", backdropFilter: "blur(24px)" }}
+                <div className="w-12 h-1 bg-black/10 rounded-full mx-auto mb-4 shrink-0" />
+                <button
+                  onClick={() => setShowDetails(false)}
+                  className="absolute top-6 right-5 h-9 w-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                  style={{ background: "rgba(255,255,255,0.50)", border: "1px solid rgba(255,255,255,0.60)", backdropFilter: "blur(8px)" }}
                 >
-                  <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-4 shrink-0" />
-                  <button
-                    onClick={() => setShowDetails(false)}
-                    className="absolute top-5 right-5 h-9 w-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                    style={{ background: "rgba(244,88,122,0.10)", border: "1px solid rgba(244,88,122,0.18)" }}
-                  >
-                    <X size={16} style={{ color: "var(--pink-hot)" }} />
-                  </button>
+                  <X size={16} style={{ color: "var(--text-secondary)" }} />
+                </button>
 
-                  <h3 className="text-[18px] font-black mb-1" style={{ color: "var(--text-primary)" }}>
-                    Week {displayWeek} Details
-                  </h3>
-                  <p className="text-[12px] font-bold mb-5" style={{ color: trimesterColor }}>
-                    {trimesterLabel} · {daysRemaining > 0 ? `${daysRemaining} days remaining` : "Due any day!"}
-                  </p>
+                <h3 className="text-[22px] font-black mb-1 font-display" style={{ color: "var(--text-primary)" }}>
+                  Week {displayWeek} Details
+                </h3>
+                <p className="text-[12px] font-extrabold mb-5 uppercase tracking-wider" style={{ color: trimesterColor }}>
+                  {trimesterLabel} · {daysRemaining > 0 ? `${daysRemaining} days remaining` : "Due any day!"}
+                </p>
 
-                  <div className="flex-1 overflow-y-auto space-y-3 scrollbar-hide">
-                    <div className="rounded-[20px] p-5" style={{ background: "rgba(244,88,122,0.06)", border: "1px solid rgba(244,88,122,0.12)" }}>
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full shrink-0"
-                          style={{ background: "rgba(244,88,122,0.12)" }}>
-                          <Ruler size={18} style={{ color: "var(--pink-hot)" }} />
-                        </div>
-                        <div>
-                          <div className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Baby Size</div>
-                          <div className="text-[16px] font-black" style={{ color: "var(--text-primary)" }}>{milestone.size}</div>
-                        </div>
+                <div className="flex-1 overflow-y-auto space-y-3.5 scrollbar-hide">
+                  <div className="rounded-[24px] p-5" style={{ background: "rgba(255,255,255,0.60)", border: "1px solid rgba(255,255,255,0.70)", boxShadow: "0 4px 16px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.60)" }}>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full shrink-0"
+                        style={{ background: "rgba(244,88,122,0.12)" }}>
+                        <Ruler size={18} style={{ color: "var(--pink-hot)" }} />
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-extrabold uppercase tracking-wider mb-0.5" style={{ color: "var(--text-muted)" }}>Baby Size</div>
+                        <div className="text-[16px] font-black" style={{ color: "var(--text-primary)" }}>{milestone.size}</div>
                       </div>
                     </div>
-
-                    <div className="rounded-[20px] p-5" style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.12)" }}>
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full shrink-0"
-                          style={{ background: "rgba(16,185,129,0.12)" }}>
-                          <Baby size={18} style={{ color: "#10B981" }} />
-                        </div>
-                        <div>
-                          <div className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Development</div>
-                          <div className="text-[14px] font-bold" style={{ color: "var(--text-primary)" }}>{milestone.development}</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-[20px] p-5" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full shrink-0"
-                          style={{ background: "rgba(245,158,11,0.12)" }}>
-                          <Heart size={18} style={{ color: "#F59E0B" }} />
-                        </div>
-                        <div>
-                          <div className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Tip for This Week</div>
-                          <div className="text-[14px] font-bold" style={{ color: "var(--text-primary)" }}>{milestone.tip}</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-[20px] p-5" style={{ background: "rgba(244,88,122,0.04)", border: "1px solid rgba(244,88,122,0.10)" }}>
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full shrink-0"
-                          style={{ background: "rgba(244,88,122,0.10)" }}>
-                          <Activity size={18} style={{ color: "var(--pink-hot)" }} />
-                        </div>
-                        <div>
-                          <div className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Progress</div>
-                          <div className="text-[14px] font-bold" style={{ color: "var(--text-primary)" }}>{Math.round(progressPercent)}% complete</div>
-                        </div>
-                      </div>
-                      <div className="h-2 w-full rounded-full overflow-hidden" style={{ background: "rgba(244,88,122,0.12)" }}>
-                        <div className="h-full rounded-full" style={{
-                          width: `${progressPercent}%`,
-                          background: "linear-gradient(90deg, var(--pink-hot), var(--coral))",
-                        }} />
-                      </div>
-                      <div className="flex justify-between mt-2 mb-1 text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>
-                        <span>Conception</span>
-                        <span>Due Date</span>
-                      </div>
-                    </div>
-                    <div className="h-24 w-full shrink-0" />
                   </div>
+
+                  <div className="rounded-[24px] p-5" style={{ background: "rgba(255,255,255,0.60)", border: "1px solid rgba(255,255,255,0.70)", boxShadow: "0 4px 16px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.60)" }}>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full shrink-0"
+                        style={{ background: "rgba(16,185,129,0.12)" }}>
+                        <Baby size={18} style={{ color: "#10B981" }} />
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-extrabold uppercase tracking-wider mb-0.5" style={{ color: "var(--text-muted)" }}>Development</div>
+                        <div className="text-[14px] font-bold" style={{ color: "var(--text-primary)" }}>{milestone.development}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[24px] p-5" style={{ background: "rgba(255,255,255,0.60)", border: "1px solid rgba(255,255,255,0.70)", boxShadow: "0 4px 16px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.60)" }}>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full shrink-0"
+                        style={{ background: "rgba(245,158,11,0.12)" }}>
+                        <Heart size={18} style={{ color: "#F59E0B" }} />
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-extrabold uppercase tracking-wider mb-0.5" style={{ color: "var(--text-muted)" }}>Tip for This Week</div>
+                        <div className="text-[14px] font-bold" style={{ color: "var(--text-primary)" }}>{milestone.tip}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[24px] p-5" style={{ background: "rgba(244,88,122,0.04)", border: "1px solid rgba(244,88,122,0.10)" }}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full shrink-0"
+                        style={{ background: "rgba(244,88,122,0.10)" }}>
+                        <Activity size={18} style={{ color: "var(--pink-hot)" }} />
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-extrabold uppercase tracking-wider mb-0.5" style={{ color: "var(--text-muted)" }}>Progress</div>
+                        <div className="text-[15px] font-black" style={{ color: "var(--text-primary)" }}>{Math.round(progressPercent)}% complete</div>
+                      </div>
+                    </div>
+                    <div className="h-2.5 w-full rounded-full overflow-hidden relative" style={{ background: "rgba(255,255,255,0.50)", border: "1px solid rgba(255,255,255,0.60)" }}>
+                      <div className="absolute left-0 top-0 bottom-0 rounded-full" style={{
+                        width: `${progressPercent}%`,
+                        background: "linear-gradient(90deg, var(--pink-hot), var(--coral))",
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.30)",
+                      }} />
+                    </div>
+                    <div className="flex justify-between mt-2.5 mb-1 text-[10px] font-extrabold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+                      <span>Conception</span>
+                      <span>Due Date</span>
+                    </div>
+                  </div>
+                  <div className="h-24 w-full shrink-0" />
                 </div>
               </motion.div>
-            </>
+            </motion.div>
           )}
         </AnimatePresence>
       </Portal>

@@ -1,29 +1,165 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Image as ImageIcon, ScanBarcode, FileText, UploadCloud, ChevronRight, Loader2 } from "lucide-react";
+import { Camera, Image as ImageIcon, ScanBarcode, FileText, ChevronRight, Loader2 } from "lucide-react";
 import { api, ScanResult } from "@/lib/api";
 import { Camera as CapCamera, CameraResultType, CameraSource } from "@capacitor/camera";
+import { BrowserMultiFormatReader, DecodeHintType } from "@zxing/library";
 
 interface UnifiedScanInterfaceProps {
-  onBarcodeDetected: (code: string) => void;
+  onBarcodeDetected: (code: string, frameData?: string) => void;
   onImageCaptured: (file: File) => void;
   onResult: (result: ScanResult) => void;
+  paused?: boolean;
 }
 
 export function UnifiedScanInterface({
   onBarcodeDetected,
   onImageCaptured,
   onResult,
+  paused = false,
 }: UnifiedScanInterfaceProps) {
-  const [activeTab, setActiveTab] = useState<"camera" | "barcode" | "text">("camera");
-  const [barcodeInput, setBarcodeInput] = useState("");
-  const [textInput, setTextInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [streamActive, setStreamActive] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
+
+        if (!active) {
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.setAttribute("playsinline", "true");
+          await videoRef.current.play();
+          setStreamActive(true);
+
+          const hints = new Map();
+          hints.set(DecodeHintType.TRY_HARDER, true);
+          const reader = new BrowserMultiFormatReader(hints);
+          readerRef.current = reader;
+
+          const scanLoop = async () => {
+            if (!active || !videoRef.current) return;
+            if (videoRef.current.videoWidth > 0) {
+              try {
+                // @ts-ignore
+                if ('BarcodeDetector' in window) {
+                  // @ts-ignore
+                  const barcodeDetector = new window.BarcodeDetector();
+                  const barcodes = await barcodeDetector.detect(videoRef.current);
+                  if (barcodes.length > 0 && active) {
+                    active = false;
+                    try { navigator.vibrate && navigator.vibrate(50); } catch (e) {}
+                    
+                    let frameData = "";
+                    try {
+                      const canvas = document.createElement("canvas");
+                      canvas.width = videoRef.current.videoWidth;
+                      canvas.height = videoRef.current.videoHeight;
+                      const ctx = canvas.getContext("2d");
+                      if (ctx) {
+                        ctx.drawImage(videoRef.current, 0, 0);
+                        frameData = canvas.toDataURL("image/jpeg", 0.8);
+                      }
+                    } catch (e) {
+                      console.warn("Failed to capture barcode frame", e);
+                    }
+
+                    onBarcodeDetected(barcodes[0].rawValue, frameData);
+                    return;
+                  }
+                } else {
+                  const res = await reader.decodeFromVideoElement(videoRef.current);
+                  if (res && active) {
+                    active = false;
+                    try { navigator.vibrate && navigator.vibrate(50); } catch (e) {}
+                  
+                  // Capture the exact frame where the barcode was found for AI Vision fallback
+                  let frameData = "";
+                  try {
+                    const canvas = document.createElement("canvas");
+                    canvas.width = videoRef.current.videoWidth;
+                    canvas.height = videoRef.current.videoHeight;
+                    const ctx = canvas.getContext("2d");
+                    if (ctx) {
+                      ctx.drawImage(videoRef.current, 0, 0);
+                      frameData = canvas.toDataURL("image/jpeg", 0.8);
+                    }
+                  } catch (e) {
+                    console.warn("Failed to capture barcode frame", e);
+                  }
+                  
+                  onBarcodeDetected(res.getText(), frameData);
+                  return;
+                  }
+                }
+              } catch (err) {
+                // Ignore NotFoundException, keep scanning
+              }
+            }
+            if (active) {
+              setTimeout(scanLoop, 500);
+            }
+          };
+          scanLoop();
+        }
+      } catch (err) {
+        console.warn("Live camera access failed, falling back to native UI", err);
+        setStreamActive(false);
+      }
+    }
+    if (paused) {
+      setStreamActive(false);
+      return;
+    }
+
+    startCamera();
+
+    return () => {
+      active = false;
+      if (readerRef.current) {
+        readerRef.current.reset();
+      }
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(t => t.stop());
+      }
+    };
+  }, [onBarcodeDetected, paused]);
+
+  const captureFrame = () => {
+    if (!videoRef.current) return;
+    setIsProcessing(true);
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.drawImage(videoRef.current, 0, 0);
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], "live_capture.jpg", { type: "image/jpeg" });
+          setIsProcessing(false);
+          onImageCaptured(file);
+        }
+      }, "image/jpeg", 0.9);
+    }
+  };
 
   const handleCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -33,13 +169,20 @@ export function UnifiedScanInterface({
 
   const handleCapacitorCamera = async () => {
     try {
+      let perms = await CapCamera.checkPermissions();
+      if (perms.camera !== 'granted') {
+        perms = await CapCamera.requestPermissions();
+      }
+      if (perms.camera !== 'granted') {
+        alert("Camera access is needed to scan food items.");
+        return;
+      }
       const photo = await CapCamera.getPhoto({
         quality: 90,
         allowEditing: false,
         resultType: CameraResultType.Uri,
         source: CameraSource.Camera
       });
-
       if (photo.webPath) {
         setIsProcessing(true);
         const response = await fetch(photo.webPath);
@@ -50,45 +193,16 @@ export function UnifiedScanInterface({
       }
     } catch (e: any) {
       setIsProcessing(false);
-      console.log("Camera error:", e);
-    }
-  };
-
-  const handleManualBarcode = async () => {
-    if (!barcodeInput.trim()) return;
-    setIsProcessing(true);
-    try {
-      const res = await api.analyzeBarcode(barcodeInput.trim());
-      onResult(res);
-      setBarcodeInput("");
-    } catch (e: any) {
-      alert("Barcode lookup failed: " + e.message);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleManualText = async () => {
-    if (!textInput.trim()) return;
-    setIsProcessing(true);
-    try {
-      const res = await api.analyzeText("ocr", textInput.trim());
-      onResult(res);
-      setTextInput("");
-    } catch (e: any) {
-      alert("Analysis failed: " + e.message);
-    } finally {
-      setIsProcessing(false);
+      if (e.message && (e.message.includes('cancelled') || e.message.includes('User cancelled'))) return;
+      alert("Camera error: " + (e.message || "Unknown error"));
     }
   };
 
   return (
     <div className="w-full flex flex-col px-4">
-      {/* Hidden file inputs for camera and gallery */}
       <input
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         ref={fileInputRef}
         onChange={handleCameraCapture}
@@ -101,173 +215,131 @@ export function UnifiedScanInterface({
         onChange={handleCameraCapture}
       />
 
-      {/* Segmented Control / Tabs */}
-      <div className="flex w-full bg-white/40 p-1 rounded-2xl shadow-sm border border-white/60 mb-6 backdrop-blur-xl relative">
-        {["camera", "barcode", "text"].map((tab) => {
-          const isActive = activeTab === tab;
-          let icon = null;
-          if (tab === "camera") icon = <Camera size={16} />;
-          if (tab === "barcode") icon = <ScanBarcode size={16} />;
-          if (tab === "text") icon = <FileText size={16} />;
+      <div className="flex flex-col items-center text-center mt-2 relative w-full">
+        <h3 className="text-[18px] font-black font-display tracking-tight mb-1" style={{ color: "var(--text-primary)" }}>Smart Scanner</h3>
+        <p className="text-[13px] font-medium px-4 mb-4 leading-relaxed" style={{ color: "var(--text-muted)" }}>
+          {streamActive ? "Auto-detecting... or tap the button to snap a photo." : "Tap Open Scanner to use the native camera."}
+        </p>
 
-          return (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab as any)}
-              className={`relative flex-1 py-3 text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors z-10 ${
-                isActive ? "text-[var(--pink-hot)]" : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {isActive && (
-                <motion.div
-                  layoutId="activeTab"
-                  className="absolute inset-0 bg-white rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.05)] border border-white/80"
-                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+        <div className="relative w-full aspect-[4/5] max-h-[55vh] flex items-center justify-center rounded-[32px] overflow-hidden bg-black/5" style={{ boxShadow: "inset 0 4px 20px rgba(0,0,0,0.05)" }}>
+          
+          <video 
+            ref={videoRef} 
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${streamActive ? 'opacity-100' : 'opacity-0'}`} 
+            autoPlay muted playsInline 
+          />
+          
+          <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center p-8 pb-32">
+            <div className="relative w-full h-full max-w-[280px] max-h-[280px]">
+              <div className="absolute w-10 h-10 border-t-4 border-l-4 rounded-tl-[24px] top-0 left-0" style={{ borderColor: streamActive ? "var(--pink-hot)" : "rgba(244,88,122,0.3)" }} />
+              <div className="absolute w-10 h-10 border-t-4 border-r-4 rounded-tr-[24px] top-0 right-0" style={{ borderColor: streamActive ? "var(--pink-hot)" : "rgba(244,88,122,0.3)" }} />
+              <div className="absolute w-10 h-10 border-b-4 border-l-4 rounded-bl-[24px] bottom-0 left-0" style={{ borderColor: streamActive ? "var(--pink-hot)" : "rgba(244,88,122,0.3)" }} />
+              <div className="absolute w-10 h-10 border-b-4 border-r-4 rounded-br-[24px] bottom-0 right-0" style={{ borderColor: streamActive ? "var(--pink-hot)" : "rgba(244,88,122,0.3)" }} />
+              
+              {streamActive && !isProcessing && (
+                <motion.div 
+                  animate={{ y: [0, 240, 0] }}
+                  transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
+                  className="absolute top-2 left-0 w-full h-[2px] shadow-[0_0_12px_3px_rgba(244,88,122,0.6)]"
+                  style={{ background: "var(--pink-hot)" }}
                 />
               )}
-              <span className="relative z-10 flex items-center gap-2">
-                {icon}
-                <span className="capitalize">{tab}</span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
+            </div>
+          </div>
 
-      {/* Dynamic Content Area */}
-      <div className="relative min-h-[320px]">
-        <AnimatePresence mode="wait">
-          {/* CAMERA TAB */}
-          {activeTab === "camera" && (
-            <motion.div
-              key="camera"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-              className="flex flex-col gap-4"
+          {!streamActive && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-0">
+              <Camera size={32} style={{ color: "var(--text-muted)", opacity: 0.5, marginBottom: "12px" }} />
+              <p className="text-[13px] font-bold" style={{ color: "var(--text-muted)" }}>Camera starting...</p>
+            </div>
+          )}
+
+          {isProcessing && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/40 backdrop-blur-sm">
+              <Loader2 size={32} className="animate-spin mb-3" style={{ color: "var(--pink-hot)" }} />
+              <p className="text-[14px] font-black" style={{ color: "var(--text-primary)" }}>Analyzing...</p>
+            </div>
+          )}
+
+          {/* Gradient overlay at bottom for button visibility */}
+          <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black/70 to-transparent pointer-events-none z-10" />
+
+          {/* Floating Buttons */}
+          <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-6 z-20 px-6">
+            
+            <button
+              onClick={() => galleryInputRef.current?.click()}
+              className="w-14 h-14 rounded-full flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform"
+              style={{
+                background: "rgba(255,255,255,0.2)",
+                backdropFilter: "blur(12px)",
+                border: "1px solid rgba(255,255,255,0.4)"
+              }}
             >
-              <div className="flex flex-col items-center text-center mb-2">
-                <div className="h-16 w-16 bg-gradient-to-tr from-[var(--pink-hot)] to-orange-400 rounded-full flex items-center justify-center shadow-lg shadow-pink-200 mb-4">
-                  <Camera size={28} className="text-white" />
-                </div>
-                <h3 className="text-[17px] font-bold text-gray-800">Smart Camera Scan</h3>
-                <p className="text-[14px] text-gray-500 font-medium px-4 mt-1">
-                  Point your camera at a barcode, nutrition label, or the food itself.
-                </p>
-              </div>
+              <ImageIcon size={22} className="text-white" />
+            </button>
 
+            {streamActive ? (
+              <button
+                onClick={captureFrame}
+                disabled={isProcessing}
+                className="relative w-[76px] h-[76px] rounded-full flex items-center justify-center active:scale-[0.95] transition-transform disabled:opacity-50"
+                style={{
+                  background: "rgba(244,88,122,0.2)",
+                  border: "4px solid var(--pink-hot)"
+                }}
+              >
+                <div className="w-[56px] h-[56px] bg-white rounded-full flex items-center justify-center shadow-lg" style={{ background: "linear-gradient(135deg, var(--pink-hot) 0%, #ff8f8f 100%)" }}>
+                  <Camera size={24} className="text-white" />
+                </div>
+              </button>
+            ) : (
               <button
                 onClick={handleCapacitorCamera}
                 disabled={isProcessing}
-                className="w-full relative overflow-hidden bg-gradient-to-r from-[var(--pink-hot)] to-[#ff8f8f] text-white rounded-2xl p-4 flex items-center justify-center gap-3 font-bold text-[16px] shadow-[0_8px_20px_rgba(244,88,122,0.3)] hover:scale-[1.02] active:scale-[0.98] transition-transform disabled:opacity-50"
+                className="relative w-[76px] h-[76px] rounded-full flex flex-col items-center justify-center active:scale-[0.95] transition-transform disabled:opacity-50"
+                style={{
+                  background: "linear-gradient(135deg, var(--pink-hot) 0%, #ff8f8f 100%)",
+                  boxShadow: "0 8px 24px rgba(244,88,122,0.4)",
+                  border: "2px solid rgba(255,255,255,0.3)"
+                }}
               >
-                {isProcessing ? <Loader2 size={22} className="animate-spin" /> : <ScanBarcode size={22} />}
-                <span>{isProcessing ? "Processing..." : "Open Camera"}</span>
-                {!isProcessing && <div className="absolute top-0 left-0 w-full h-full bg-white/20 opacity-0 hover:opacity-100 transition-opacity" />}
+                {isProcessing ? <Loader2 size={24} className="animate-spin text-white" /> : <ScanBarcode size={28} className="text-white mb-0.5" />}
               </button>
+            )}
 
-              <div className="flex items-center gap-4 py-2">
-                <div className="h-[1px] flex-1 bg-gray-200"></div>
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">OR</span>
-                <div className="h-[1px] flex-1 bg-gray-200"></div>
-              </div>
-
-              <button
-                onClick={() => galleryInputRef.current?.click()}
-                className="w-full bg-white text-gray-700 border border-gray-200 rounded-2xl p-4 flex items-center justify-center gap-3 font-bold text-[16px] shadow-sm hover:bg-gray-50 active:scale-[0.98] transition-all"
-              >
-                <ImageIcon size={22} className="text-[var(--pink-hot)]" />
-                <span>Choose Photo from Gallery</span>
-              </button>
-            </motion.div>
-          )}
-
-          {/* BARCODE TAB */}
-          {activeTab === "barcode" && (
-            <motion.div
-              key="barcode"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-              className="flex flex-col gap-4 bg-white/60 p-6 rounded-3xl border border-white/80 shadow-sm backdrop-blur-md"
+            <button
+              onClick={() => {
+                const input = prompt("Enter barcode or food name to search manually:");
+                if (input && input.trim()) {
+                  setIsProcessing(true);
+                  const isBarcode = /^\d+$/.test(input.trim()) && (input.trim().length >= 8 && input.trim().length <= 18);
+                  if (isBarcode) {
+                    api.analyzeBarcode(input.trim())
+                      .then(res => onResult(res))
+                      .catch(e => alert("Barcode lookup failed: " + e.message))
+                      .finally(() => setIsProcessing(false));
+                  } else {
+                    api.analyzeText("search", input.trim())
+                      .then(res => onResult(res))
+                      .catch(e => alert("Analysis failed: " + e.message))
+                      .finally(() => setIsProcessing(false));
+                  }
+                }
+              }}
+              className="w-14 h-14 rounded-full flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform"
+              style={{
+                background: "rgba(255,255,255,0.2)",
+                backdropFilter: "blur(12px)",
+                border: "1px solid rgba(255,255,255,0.4)"
+              }}
             >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-[var(--pink-hot)]/10 rounded-xl">
-                  <ScanBarcode size={20} className="text-[var(--pink-hot)]" />
-                </div>
-                <h3 className="text-[16px] font-bold text-gray-800">Enter Barcode</h3>
-              </div>
-              
-              <p className="text-[13px] text-gray-500 font-medium">
-                Type the numbers exactly as they appear below the barcode on the package.
-              </p>
-
-              <div className="relative mt-2">
-                <input
-                  type="text"
-                  value={barcodeInput}
-                  onChange={(e) => setBarcodeInput(e.target.value)}
-                  placeholder="e.g. 012345678905"
-                  className="w-full bg-white border border-gray-200 rounded-2xl py-4 px-5 text-[16px] font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--pink-hot)]/30 focus:border-[var(--pink-hot)] shadow-sm transition-all"
-                />
-              </div>
-
-              <button
-                onClick={handleManualBarcode}
-                disabled={!barcodeInput.trim() || isProcessing}
-                className="w-full mt-2 bg-gray-900 text-white rounded-2xl p-4 flex items-center justify-center gap-2 font-bold text-[15px] hover:bg-gray-800 disabled:opacity-50 disabled:active:scale-100 active:scale-[0.98] transition-all"
-              >
-                {isProcessing ? <Loader2 size={20} className="animate-spin" /> : <span>Analyze Barcode</span>}
-                {!isProcessing && <ChevronRight size={18} />}
-              </button>
-            </motion.div>
-          )}
-
-          {/* TEXT OCR TAB */}
-          {activeTab === "text" && (
-            <motion.div
-              key="text"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-              className="flex flex-col gap-4 bg-white/60 p-6 rounded-3xl border border-white/80 shadow-sm backdrop-blur-md"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-[var(--pink-hot)]/10 rounded-xl">
-                  <FileText size={20} className="text-[var(--pink-hot)]" />
-                </div>
-                <h3 className="text-[16px] font-bold text-gray-800">Ingredients Text</h3>
-              </div>
-              
-              <p className="text-[13px] text-gray-500 font-medium">
-                Paste copied ingredients text or manually type the contents to check for pregnancy safety.
-              </p>
-
-              <div className="relative mt-2">
-                <textarea
-                  value={textInput}
-                  onChange={(e) => setTextInput(e.target.value)}
-                  placeholder="Paste ingredients here..."
-                  rows={4}
-                  className="w-full bg-white border border-gray-200 rounded-2xl py-4 px-5 text-[15px] font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--pink-hot)]/30 focus:border-[var(--pink-hot)] shadow-sm transition-all resize-none"
-                />
-              </div>
-
-              <button
-                onClick={handleManualText}
-                disabled={!textInput.trim() || isProcessing}
-                className="w-full mt-2 bg-gradient-to-r from-[var(--pink-hot)] to-[#ff8f8f] text-white rounded-2xl p-4 flex items-center justify-center gap-2 font-bold text-[15px] shadow-md hover:shadow-lg disabled:opacity-50 disabled:active:scale-100 active:scale-[0.98] transition-all"
-              >
-                {isProcessing ? <Loader2 size={20} className="animate-spin" /> : <span>Analyze Ingredients</span>}
-                {!isProcessing && <ChevronRight size={18} />}
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              <FileText size={22} className="text-white" />
+            </button>
+          </div>
+        </div>
       </div>
+
     </div>
   );
 }

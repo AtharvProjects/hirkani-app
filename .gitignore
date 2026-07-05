@@ -17,3 +17,4 @@ backend/.env
 *.log
 *.apk
 dump.rdb
+frontend/out/

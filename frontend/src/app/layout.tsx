@@ -5,7 +5,12 @@ import { Providers } from "@/components/Providers";
 export const metadata: Metadata = {
   title: "HIRKANI – Pregnancy Food Safety Guide",
   description: "AI-powered pregnancy food safety scanner",
-  manifest: "/manifest.webmanifest"
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Hirkani",
+  },
 };
 
 export const viewport: Viewport = {
@@ -14,12 +19,13 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
+  themeColor: "#F4587A",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
+      <body className="font-sans">
         <Providers>
           <main className="flex min-h-screen items-center justify-center bg-transparent">{children}</main>
         </Providers>

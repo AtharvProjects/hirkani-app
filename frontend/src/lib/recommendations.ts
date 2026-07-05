@@ -1,8 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { PregnancyProfile, RecommendationResponse, RecommendationItem } from './api';
-
-const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
-const genAI = new GoogleGenerativeAI(apiKey);
 
 export async function getDailyTips(profile: any) {
   const trimester = profile?.trimester || 2;
@@ -16,15 +12,26 @@ export async function getDailyTips(profile: any) {
 }`;
 
   try {
-    if (!apiKey) throw new Error("Missing API Key");
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: "application/json" }
+    const response = await fetch("/api/llm/tips", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ profile })
     });
-    const data = JSON.parse(result.response.text());
-    const tips = data.tips && Array.isArray(data.tips) ? data.tips.slice(0, 2) : [];
-    if (tips.length >= 2) return { trimester, tips };
+
+    const result = await response.json();
+    if (result.choices && result.choices.length > 0) {
+      let textResponse = result.choices[0].message.content;
+      if (textResponse.includes("```json")) {
+        textResponse = textResponse.replace(/```json/g, "").replace(/```/g, "").trim();
+      } else if (textResponse.includes("```")) {
+        textResponse = textResponse.replace(/```/g, "").trim();
+      }
+      const data = JSON.parse(textResponse);
+      const tips = data.tips && Array.isArray(data.tips) ? data.tips.slice(0, 2) : [];
+      if (tips.length >= 2) return { trimester, tips };
+    }
   } catch (e) {
     console.error("Error fetching daily tips:", e);
   }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Baby, Salad, ShieldAlert, Apple } from "lucide-react";
-import { motion } from "framer-motion";
+import { Loader2, Baby, Salad, ShieldAlert, Apple, ChevronLeft, ArrowRight } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 
 const DIETS = ["Veg", "Non Veg", "Vegan", "Pescatarian"];
@@ -18,10 +18,16 @@ export function OnboardingProfile({
   initialData?: any;
   onCancel?: () => void;
 }) {
+  const [step, setStep] = useState(1);
+  const totalSteps = 3;
+
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   const [age, setAge] = useState(initialData?.age ? String(initialData.age) : "");
+  
+  const { dueDate: initialDueDate, setDueDate } = require('@/store/useAppStore').useAppStore();
+  const [dueDateStr, setDueDateStr] = useState(initialDueDate || "");
   const [week, setWeek] = useState(initialData?.pregnancy_week ? String(initialData.pregnancy_week) : "");
   const [diet, setDiet] = useState(initialData?.diet_preference || "Veg");
 
@@ -71,19 +77,42 @@ export function OnboardingProfile({
     setList(filtered.includes(item) ? filtered.filter((x) => x !== item) : [...filtered, item]);
   };
 
+  const handleNext = () => {
+    setErrorMsg("");
+    if (step === 1) {
+      const parsedAge = parseInt(age);
+      if (isNaN(parsedAge) || parsedAge < 13 || parsedAge > 55) {
+        setErrorMsg("Please enter a valid age (13-55).");
+        return;
+      }
+      if (!dueDateStr && !week) {
+        setErrorMsg("Please enter either your Due Date or current Pregnancy Week.");
+        return;
+      }
+      let parsedWeek = parseInt(week);
+      if (dueDateStr) {
+        const calc = require('@/lib/api').calculatePregnancyFromDueDate(dueDateStr);
+        if (calc) parsedWeek = calc.week;
+      }
+      if (isNaN(parsedWeek) || parsedWeek < 1 || parsedWeek > 42) {
+        setErrorMsg("Invalid pregnancy week or Due Date.");
+        return;
+      }
+    }
+    setStep(s => Math.min(s + 1, totalSteps));
+  };
+
   const submit = async () => {
     setErrorMsg("");
-
     const parsedAge = parseInt(age);
-    if (isNaN(parsedAge) || parsedAge < 13 || parsedAge > 55) {
-      setErrorMsg("Age must be between 13 and 55");
-      return;
-    }
-
-    const parsedWeek = parseInt(week);
-    if (isNaN(parsedWeek) || parsedWeek < 1 || parsedWeek > 42) {
-      setErrorMsg("Pregnancy week must be between 1 and 42");
-      return;
+    let parsedWeek = parseInt(week);
+    
+    if (dueDateStr) {
+      const calc = require('@/lib/api').calculatePregnancyFromDueDate(dueDateStr);
+      if (calc) {
+        parsedWeek = calc.week;
+        setDueDate(dueDateStr);
+      }
     }
 
     setLoading(true);
@@ -129,7 +158,7 @@ export function OnboardingProfile({
     <div className="flex items-center gap-2 mb-3">
       <div
         className="flex h-7 w-7 items-center justify-center rounded-full"
-        style={{ background: "rgba(244,88,122,0.12)" }}
+        style={{ background: "rgba(244,88,122,0.12)", border: "1px solid rgba(244,88,122,0.18)" }}
       >
         <Icon size={14} style={{ color: "var(--pink-hot)" }} />
       </div>
@@ -142,200 +171,214 @@ export function OnboardingProfile({
     </div>
   );
 
+  const variants = {
+    enter: (direction: number) => ({ x: direction > 0 ? 50 : -50, opacity: 0 }),
+    center: { x: 0, opacity: 1 },
+    exit: (direction: number) => ({ x: direction < 0 ? 50 : -50, opacity: 0 })
+  };
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, ease: [0.34, 1.1, 0.64, 1] }}
-    >
-      {/* Header */}
-      <div className="mb-6 text-center">
-        <div
-          className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full"
-          style={{
-            background: "rgba(255,255,255,0.55)",
-            border: "2px solid rgba(255,255,255,0.80)",
-            backdropFilter: "blur(16px)",
-            boxShadow: "0 8px 24px rgba(244,88,122,0.20)",
-          }}
-        >
-          <Apple size={28} style={{ color: "var(--pink-hot)" }} />
+    <div className="flex flex-col">
+      {/* Strict Wizard Header */}
+      <div className="relative pt-2 pb-4 flex items-center justify-between z-10 shrink-0">
+        <div className="w-10 h-10 z-20">
+          {step > 1 ? (
+            <button onClick={() => setStep(s => s - 1)} className="flex items-center justify-center w-10 h-10 rounded-full glass-card hover:bg-white/40 active:scale-95 transition-all">
+              <ChevronLeft size={20} />
+            </button>
+          ) : onCancel ? (
+            <button onClick={onCancel} className="flex items-center justify-center w-10 h-10 rounded-full glass-card hover:bg-white/40 active:scale-95 transition-all">
+              <ChevronLeft size={20} />
+            </button>
+          ) : null}
         </div>
-        <h2 className="text-[24px] font-black tracking-tight" style={{ color: "var(--text-primary)" }}>
-          Personalize Your Guide
-        </h2>
-        <p className="text-[13px] font-semibold mt-1" style={{ color: "var(--text-secondary)" }}>
-          Help us keep you and your baby safe 🌸
-        </p>
+        
+        {/* Progress Indicator */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="flex gap-2 items-center mt-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-1.5 w-6 rounded-full transition-colors duration-300" style={{
+                background: step >= i ? "var(--pink-hot)" : "rgba(0,0,0,0.08)"
+              }} />
+            ))}
+          </div>
+        </div>
+        
+        <div className="w-10 h-10 z-20" />
       </div>
 
-      {/* Card */}
-      <div
-        className="rounded-[32px] p-5 space-y-5"
-        style={{
-          background: "rgba(255,255,255,0.58)",
-          border: "1.5px solid rgba(255,255,255,0.80)",
-          backdropFilter: "blur(28px)",
-          WebkitBackdropFilter: "blur(28px)",
-          boxShadow: "0 16px 48px rgba(244,88,122,0.12), 0 4px 16px rgba(0,0,0,0.05)",
-        }}
-      >
-        {/* Age & Week */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label
-              className="block text-[11px] font-extrabold uppercase tracking-[0.18em] mb-2 ml-1"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Age
-            </label>
-            <input
-              type="number"
-              className="hk-input"
-              value={age}
-              onChange={(e) => setAge(e.target.value)}
-              placeholder="e.g. 29"
-            />
-          </div>
-          <div>
-            <label
-              className="block text-[11px] font-extrabold uppercase tracking-[0.18em] mb-2 ml-1"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Week
-            </label>
-            <input
-              type="number"
-              className="hk-input"
-              value={week}
-              onChange={(e) => setWeek(e.target.value)}
-              placeholder="e.g. 18"
-            />
-          </div>
-        </div>
-
-        {/* Diet */}
-        <div>
-          <SectionLabel icon={Salad} label="Diet Preference" />
-          <div className="flex flex-wrap gap-2">
-            {DIETS.map((d) => (
-              <button
-                key={d}
-                onClick={() => setDiet(d)}
-                className={`hk-chip ${diet === d ? "hk-chip-active" : ""}`}
-              >
-                {d}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Allergies */}
-        <div>
-          <SectionLabel icon={ShieldAlert} label="Allergies" />
-          <div className="flex flex-wrap gap-2">
-            {COMMON_ALLERGIES.map((a) => (
-              <button
-                key={a}
-                onClick={() => toggleList(allergies, setAllergies, a)}
-                className={`hk-chip ${allergies.includes(a) ? "hk-chip-active" : ""}`}
-              >
-                {a}
-              </button>
-            ))}
-            <button
-              onClick={() => setShowOtherAllergy(!showOtherAllergy)}
-              className={`hk-chip ${showOtherAllergy ? "hk-chip-active" : ""}`}
-            >
-              Other
-            </button>
-          </div>
-          {showOtherAllergy && (
-            <input
-              className="hk-input mt-3"
-              value={otherAllergy}
-              onChange={(e) => setOtherAllergy(e.target.value)}
-              placeholder="Type other allergies..."
-            />
-          )}
-        </div>
-
-        {/* Medical Conditions */}
-        <div>
-          <SectionLabel icon={Baby} label="Medical Conditions" />
-          <div className="flex flex-wrap gap-2">
-            {COMMON_CONDITIONS.map((c) => (
-              <button
-                key={c}
-                onClick={() => toggleList(conditions, setConditions, c)}
-                className={`hk-chip ${conditions.includes(c) ? "hk-chip-active" : ""}`}
-              >
-                {c}
-              </button>
-            ))}
-            <button
-              onClick={() => setShowOtherCondition(!showOtherCondition)}
-              className={`hk-chip ${showOtherCondition ? "hk-chip-active" : ""}`}
-            >
-              Other
-            </button>
-          </div>
-          {showOtherCondition && (
-            <input
-              className="hk-input mt-3"
-              value={otherCondition}
-              onChange={(e) => setOtherCondition(e.target.value)}
-              placeholder="Type other conditions..."
-            />
-          )}
-        </div>
-
-        {/* Doctor Restrictions */}
-        <div>
-          <label
-            className="block text-[11px] font-extrabold uppercase tracking-[0.18em] mb-2 ml-1"
-            style={{ color: "var(--text-muted)" }}
+      <div className="flex-1 pt-4 flex flex-col">
+        <div className="mb-6 text-center">
+          <motion.div
+            initial={{ scale: 0, rotate: -15 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.1 }}
+            className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full"
+            style={{
+              background: "rgba(255,255,255,0.85)",
+              border: "2px solid rgba(255,255,255,0.80)",
+              boxShadow: "0 8px 32px rgba(244,88,122,0.20), inset 0 1px 0 rgba(255,255,255,0.70)",
+            }}
           >
-            Doctor Restrictions <span className="normal-case opacity-60">(optional)</span>
-          </label>
-          <input
-            className="hk-input"
-            value={restrictions}
-            onChange={(e) => setRestrictions(e.target.value)}
-            placeholder="e.g. No raw fish"
-          />
+            <Apple size={24} style={{ color: "var(--pink-hot)" }} />
+          </motion.div>
+          <h2 className="text-[26px] font-black tracking-tight font-display leading-tight" style={{ color: "var(--text-primary)" }}>
+            {step === 1 ? "Let's setup your profile" : step === 2 ? "What do you eat?" : "Any health guidelines?"}
+          </h2>
+          <p className="text-[14px] font-medium mt-1.5" style={{ color: "var(--text-secondary)" }}>
+            {step === 1 ? "Help us customize your pregnancy food guide." : step === 2 ? "We'll tailor food safety to your diet." : "We'll watch out for these conditions."}
+          </p>
         </div>
 
-        {errorMsg && (
-          <div className="text-xs font-bold text-red-600 bg-red-100/50 border border-red-200/50 p-3 rounded-2xl text-center">
-            ⚠️ {errorMsg}
-          </div>
-        )}
-
-        <div className="flex gap-3 mt-2">
-          {onCancel && (
-            <button
-              type="button"
-              className="flex-1 h-[56px] rounded-[22px] font-extrabold text-[15px] border transition-transform active:scale-95 flex items-center justify-center"
-              style={{
-                background: "rgba(255,255,255,0.40)",
-                border: "1.5px solid rgba(255,255,255,0.70)",
-                color: "var(--text-primary)",
-              }}
-              onClick={onCancel}
+        <div className="flex-1 relative">
+          <AnimatePresence mode="wait" custom={1}>
+            <motion.div
+              key={step}
+              custom={1}
+              variants={variants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="glass-card-premium p-6 w-full"
             >
-              Cancel
+              {step === 1 && (
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-[11px] font-extrabold uppercase tracking-[0.18em] mb-2 ml-1" style={{ color: "var(--text-muted)" }}>
+                      Age
+                    </label>
+                    <input
+                      type="number"
+                      className="hk-input text-[16px] px-5 py-4 h-auto"
+                      value={age}
+                      onChange={(e) => setAge(e.target.value)}
+                      placeholder="e.g. 29"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-extrabold uppercase tracking-[0.18em] mb-2 ml-1" style={{ color: "var(--text-muted)" }}>
+                      Due Date (EDD)
+                    </label>
+                    <input
+                      type="date"
+                      className="hk-input text-[16px] px-5 py-4 h-auto"
+                      value={dueDateStr}
+                      onChange={(e) => {
+                        setDueDateStr(e.target.value);
+                        setWeek("");
+                      }}
+                    />
+                  </div>
+                  
+                  {!dueDateStr && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="pt-2">
+                      <label className="block text-[11px] font-extrabold uppercase tracking-[0.18em] mb-2 ml-1" style={{ color: "var(--text-muted)" }}>
+                        Or Manual Week
+                      </label>
+                      <input
+                        type="number"
+                        className="hk-input text-[16px] px-5 py-4 h-auto"
+                        value={week}
+                        onChange={(e) => setWeek(e.target.value)}
+                        placeholder="e.g. 18 (if EDD unknown)"
+                      />
+                    </motion.div>
+                  )}
+                </div>
+              )}
+
+              {step === 2 && (
+                <div className="space-y-6">
+                  <div>
+                    <SectionLabel icon={Salad} label="Diet Preference" />
+                    <div className="flex flex-wrap gap-2.5">
+                      {DIETS.map((d) => (
+                        <button key={d} onClick={() => setDiet(d)} className={`hk-chip ${diet === d ? "hk-chip-active" : ""}`}>
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <SectionLabel icon={ShieldAlert} label="Allergies" />
+                    <div className="flex flex-wrap gap-2.5">
+                      {COMMON_ALLERGIES.map((a) => (
+                        <button key={a} onClick={() => toggleList(allergies, setAllergies, a)} className={`hk-chip ${allergies.includes(a) ? "hk-chip-active" : ""}`}>
+                          {a}
+                        </button>
+                      ))}
+                      <button onClick={() => setShowOtherAllergy(!showOtherAllergy)} className={`hk-chip ${showOtherAllergy ? "hk-chip-active" : ""}`}>
+                        Other
+                      </button>
+                    </div>
+                    <AnimatePresence>
+                      {showOtherAllergy && (
+                        <motion.div initial={{ opacity: 0, height: 0, marginTop: 0 }} animate={{ opacity: 1, height: "auto", marginTop: 12 }} exit={{ opacity: 0, height: 0, marginTop: 0 }}>
+                          <input className="hk-input" value={otherAllergy} onChange={(e) => setOtherAllergy(e.target.value)} placeholder="Type other allergies..." />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              )}
+
+              {step === 3 && (
+                <div className="space-y-6">
+                  <div>
+                    <SectionLabel icon={Baby} label="Medical Conditions" />
+                    <div className="flex flex-wrap gap-2.5">
+                      {COMMON_CONDITIONS.map((c) => (
+                        <button key={c} onClick={() => toggleList(conditions, setConditions, c)} className={`hk-chip ${conditions.includes(c) ? "hk-chip-active" : ""}`}>
+                          {c}
+                        </button>
+                      ))}
+                      <button onClick={() => setShowOtherCondition(!showOtherCondition)} className={`hk-chip ${showOtherCondition ? "hk-chip-active" : ""}`}>
+                        Other
+                      </button>
+                    </div>
+                    <AnimatePresence>
+                      {showOtherCondition && (
+                        <motion.div initial={{ opacity: 0, height: 0, marginTop: 0 }} animate={{ opacity: 1, height: "auto", marginTop: 12 }} exit={{ opacity: 0, height: 0, marginTop: 0 }}>
+                          <input className="hk-input" value={otherCondition} onChange={(e) => setOtherCondition(e.target.value)} placeholder="Type other conditions..." />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-extrabold uppercase tracking-[0.18em] mb-2 ml-1" style={{ color: "var(--text-muted)" }}>
+                      Doctor Restrictions <span className="normal-case opacity-60">(optional)</span>
+                    </label>
+                    <input className="hk-input" value={restrictions} onChange={(e) => setRestrictions(e.target.value)} placeholder="e.g. No raw fish" />
+                  </div>
+                </div>
+              )}
+
+              <AnimatePresence>
+                {errorMsg && (
+                  <motion.div initial={{ opacity: 0, height: 0, marginTop: 0 }} animate={{ opacity: 1, height: "auto", marginTop: 16 }} exit={{ opacity: 0, height: 0, marginTop: 0 }} className="overflow-hidden">
+                    <div className="text-[13px] font-bold text-red-600 bg-red-100/60 border border-red-200/60 p-3.5 rounded-[16px] text-center backdrop-blur-md">
+                      ⚠️ {errorMsg}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        <div className="pb-8 pt-6">
+          {step < 3 ? (
+            <button onClick={handleNext} className="btn-primary w-full h-[56px] text-[16px] rounded-[24px] flex items-center justify-center gap-2">
+              Next Step <ArrowRight size={18} />
+            </button>
+          ) : (
+            <button onClick={submit} disabled={loading} className="btn-primary w-full h-[56px] text-[16px] rounded-[24px]">
+              {loading ? <Loader2 className="animate-spin" size={20} /> : "Complete Profile ✨"}
             </button>
           )}
-          <button
-            disabled={loading}
-            className="btn-primary flex-1 h-[56px] text-[16px]"
-            onClick={submit}
-          >
-            {loading ? <Loader2 className="animate-spin" size={20} /> : "Save Profile →"}
-          </button>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

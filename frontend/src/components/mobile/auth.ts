@@ -16,8 +16,13 @@ export async function getMobileState(forceRefresh = false): Promise<MobileState>
   if (!forceRefresh && cachePromise) return cachePromise;
 
   cachePromise = (async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error || !session) {
+        cachedState = { authed: false, profileDone: false };
+        return cachedState;
+      }
+    } catch (e) {
       cachedState = { authed: false, profileDone: false };
       return cachedState;
     }

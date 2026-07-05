@@ -2,20 +2,44 @@
 
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useAppStore } from "@/store/useAppStore";
 
 export default function LandingPage() {
   const router = useRouter();
+  const isAuthed = useAppStore((state) => state.isAuthed);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isAuthed) {
+      router.replace("/home");
+    }
+  }, [isAuthed, router]);
+
+  // Prevent flash during hydration/redirect
+  if (!mounted || isAuthed) {
+    return null;
+  }
 
   const handleAction = () => {
     router.push("/home");
   };
 
   return (
-    <div
-      className="absolute inset-0 flex flex-col overflow-hidden z-50"
-    >
+    <div className="absolute inset-0 flex flex-col overflow-hidden z-50">
+      {/* Aurora background */}
+      <div className="aurora-bg">
+        <div className="aurora-blob-3" />
+        <div className="aurora-blob-4" />
+        <div className="aurora-noise" />
+      </div>
+
       {/* Hero illustration */}
-      <div className="relative flex-1 flex items-center justify-center min-h-0 overflow-hidden pt-8">
+      <div className="relative flex-1 flex items-center justify-center min-h-0 overflow-hidden pt-8 z-10">
         <motion.img
           initial={{ opacity: 0, y: 30, scale: 0.94 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -40,57 +64,70 @@ export default function LandingPage() {
         className="relative z-10 px-6 pb-12 shrink-0"
       >
         {/* Headline */}
-        <h1 className="text-[30px] leading-[1.18] text-slate-800 mb-3" style={{ textShadow: "0 2px 12px rgba(255,255,255,0.8)", fontWeight: 300 }}>
+        <h1
+          className="text-[30px] leading-[1.18] mb-3 font-display"
+          style={{
+            color: "var(--text-primary)",
+            textShadow: "0 2px 12px rgba(255,255,255,0.8)",
+            fontWeight: 300,
+          }}
+        >
           Welcome to <span style={{ fontWeight: 800 }}>Hirkani!</span> Are{"\n"}
           you <span style={{ fontWeight: 800 }}>pregnant?</span>
         </h1>
 
         {/* Subtitle */}
-        <p className="text-[13px] font-medium text-slate-600 mb-6 leading-relaxed">
+        <p className="text-[13px] font-medium mb-6 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
           Your diet can change with your pregnancy stage. Knowing it
           helps us make better recommendations.
         </p>
 
-        {/* Two side-by-side buttons */}
+        {/* Two side-by-side glass buttons */}
         <div className="flex gap-3 mb-4">
-          {/* Ghost button */}
+          {/* Ghost glass button */}
           <button
             onClick={handleAction}
-            className="flex-1 h-[56px] rounded-[28px] text-[14px] font-bold transition-transform active:scale-95"
+            className="flex-1 h-[56px] rounded-[28px] text-[14px] font-bold transition-transform active:scale-[0.97]"
             style={{
-              background: "rgba(255,255,255,0.92)",
-              color: "#2D1B2E",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
+              background: "rgba(255,255,255,0.35)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              border: "1px solid rgba(255,255,255,0.50)",
+              color: "var(--text-primary)",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.50), inset 0 0 8px rgba(255,255,255,0.10)",
             }}
           >
             Not yet, but I'm trying
           </button>
 
-          {/* Frosted button */}
+          {/* Frosted glass button */}
           <button
             onClick={handleAction}
-            className="flex-1 h-[56px] rounded-[28px] text-[14px] font-bold transition-transform active:scale-95"
+            className="flex-1 h-[56px] rounded-[28px] text-[14px] font-bold transition-transform active:scale-[0.97]"
             style={{
-              background: "rgba(255,255,255,0.7)",
-              border: "1.5px solid rgba(255,255,255,0.9)",
-              color: "#2D1B2E",
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
+              background: "rgba(255,255,255,0.45)",
+              border: "1px solid rgba(255,255,255,0.60)",
+              color: "var(--text-primary)",
+              backdropFilter: "blur(24px)",
+              WebkitBackdropFilter: "blur(24px)",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.55), inset 0 0 10px rgba(255,255,255,0.12)",
             }}
           >
             Yes, I'm pregnant
           </button>
         </div>
 
-        {/* Full-width white button */}
+        {/* Full-width glass CTA button */}
         <button
           onClick={handleAction}
-          className="w-full h-[56px] rounded-[28px] text-[15px] font-bold transition-transform active:scale-95"
+          className="w-full h-[56px] rounded-[28px] text-[15px] font-bold transition-transform active:scale-[0.97]"
           style={{
-            background: "rgba(255,255,255,0.95)",
-            color: "#2D1B2E",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.14)",
+            background: "rgba(255,255,255,0.55)",
+            backdropFilter: "blur(28px)",
+            WebkitBackdropFilter: "blur(28px)",
+            border: "1px solid rgba(255,255,255,0.60)",
+            color: "var(--text-primary)",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.60), inset 0 -1px 0 rgba(255,255,255,0.10), inset 0 0 14px 4px rgba(255,255,255,0.08)",
           }}
         >
           About my body

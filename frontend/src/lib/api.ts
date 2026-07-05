@@ -1,8 +1,10 @@
 import { supabase } from './supabase';
+import { useAppStore } from '@/store/useAppStore';
 import { evaluatePregnancySafety } from './rulesEngine';
 import { barcodeStage, searchStage, autocompleteStage } from './foodPipeline';
-import { geminiVisionScan, generateSimpleExplanation } from './llm';
+import { geminiVisionScan, geminiTextScan, generateSimpleExplanation } from './llm';
 import { getDailyTips } from './recommendations';
+import { logger } from './logger';
 
 export type SafetyClass = "SAFE" | "CONSUME_WITH_CAUTION" | "AVOID_DURING_PREGNANCY";
 
@@ -64,6 +66,28 @@ export interface RecommendationResponse {
   items: RecommendationItem[];
 }
 
+export function calculatePregnancyFromDueDate(dueDateStr: string | null) {
+  if (!dueDateStr) return null;
+  const dueDate = new Date(dueDateStr);
+  if (isNaN(dueDate.getTime())) return null;
+
+  const today = new Date();
+  const diffTime = dueDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  // Total pregnancy is 280 days (40 weeks).
+  // Days pregnant = 280 - days until due date
+  const daysPregnant = 280 - diffDays;
+  
+  let week = Math.floor(daysPregnant / 7) + 1;
+  // Clamp week between 1 and 42
+  if (week < 1) week = 1;
+  if (week > 42) week = 42;
+  
+  const trimester = week <= 13 ? 1 : week <= 26 ? 2 : 3;
+  return { week, trimester };
+}
+
 async function getUser() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
@@ -74,55 +98,77 @@ async function storeScan(data: any, scanType: string, payloadStr: string): Promi
   const user = await getUser();
   const profile = await api.getProfile() || {};
   
-  const evalResult = evaluatePregnancySafety(
+  let aiAllergies: string[] = [];
+  if (profile.allergies && profile.allergies.length > 0) {
+    const { checkAllergiesWithAI } = await import('./llm');
+    aiAllergies = await checkAllergiesWithAI(data.detected_food, data.ingredients || [], profile.allergies);
+  }
+  
+  const evalResult = await evaluatePregnancySafety(
     data.detected_food,
     data.ingredients || [],
     data.nutrients || {},
-    profile
+    profile,
+    aiAllergies
   );
 
   const explanation = generateSimpleExplanation(evalResult.final, evalResult.ruleHits);
   const imageUrl = data.image_url || null;
 
-  const dbRecord = {
+  const dbRecordToInsert = {
     user_id: user.id,
     scan_type: scanType,
     input_value: payloadStr,
     detected_food: data.detected_food,
     ingredients: JSON.stringify(data.ingredients || []),
     nutrients: JSON.stringify(data.nutrients || {}),
+    additives: "[]",
     classification: evalResult.final,
     explanation,
     rule_hits: JSON.stringify(evalResult.ruleHits),
     alternatives: JSON.stringify(evalResult.alternatives),
-    safety_score: evalResult.safetyScore,
-    why_reasons: JSON.stringify(evalResult.whyReasons),
-    trimester_risk: evalResult.trimesterRisk,
-    ingredients_analysis: JSON.stringify(evalResult.ingredientsAnalysis),
-    recommendation: evalResult.recommendation,
-    sources: JSON.stringify(evalResult.sources),
-    nutrient_insights: JSON.stringify(evalResult.nutrientInsights),
-    references: JSON.stringify([{ title: "WHO maternal nutrition guidance", url: "https://www.who.int/health-topics/pregnancy" }]),
-    image_url: imageUrl
+    references: JSON.stringify(evalResult.references)
   };
 
-  const { data: inserted, error } = await supabase.from('scan_records').insert(dbRecord).select().single();
-  if (error) console.error("Failed to save scan record:", JSON.stringify(error, null, 2));
+  const { data: inserted, error } = await supabase.from('scan_records').insert(dbRecordToInsert).select().single();
+  if (error) {
+    console.error("Failed to save scan record:", JSON.stringify(error, null, 2));
+    logger.error(error, "Supabase storeScan failure");
+  } else if (inserted) {
+    if (typeof window !== 'undefined') {
+      const store = useAppStore.getState();
+      store.setScanHistory([inserted, ...store.scanHistory]);
+      
+      if (imageUrl && inserted.id) {
+        // Only store very small downscaled thumbnails in local storage (done in UI)
+        store.setScanThumbnail(inserted.id.toString(), imageUrl);
+      }
+      
+      // Increment streak if safe
+      if (evalResult.final === "SAFE") {
+        store.incrementStreak();
+      }
+    }
+  }
 
   // Always return the original correctly typed arrays back to the frontend React components
   return {
-    ...dbRecord,
+    ...dbRecordToInsert,
     classification: evalResult.final as SafetyClass,
     id: inserted?.id,
     ingredients: data.ingredients || [],
     nutrients: data.nutrients || {},
     rule_hits: evalResult.ruleHits,
     alternatives: evalResult.alternatives,
+    safety_score: evalResult.safetyScore,
     why_reasons: evalResult.whyReasons,
+    trimester_risk: evalResult.trimesterRisk,
     ingredients_analysis: evalResult.ingredientsAnalysis,
+    recommendation: evalResult.recommendation,
     sources: evalResult.sources,
     nutrient_insights: evalResult.nutrientInsights,
-    references: [{ title: "WHO maternal nutrition guidance", url: "https://www.who.int/health-topics/pregnancy" }]
+    references: evalResult.references,
+    image_url: imageUrl
   };
 }
 
@@ -144,6 +190,8 @@ export const api = {
     if (error) throw new Error(error.message);
     const { clearMobileStateCache } = await import('@/components/mobile/auth');
     clearMobileStateCache();
+    await api.getProfile().catch(console.error);
+    useAppStore.getState().setAuthed(true);
     return data;
   },
 
@@ -158,6 +206,7 @@ export const api = {
     }
     const { clearMobileStateCache } = await import('@/components/mobile/auth');
     clearMobileStateCache();
+    useAppStore.getState().setAuthed(true);
     return data;
   },
 
@@ -166,6 +215,8 @@ export const api = {
     if (error) throw new Error(error.message);
     const { clearMobileStateCache } = await import('@/components/mobile/auth');
     clearMobileStateCache();
+    await api.getProfile().catch(console.error);
+    useAppStore.getState().setAuthed(true);
     return data;
   },
 
@@ -185,8 +236,22 @@ export const api = {
       .single();
     if (error) throw new Error(error.message);
     
+    if (data) {
+      if (typeof data.allergies === 'string') {
+        try { data.allergies = JSON.parse(data.allergies); } 
+        catch (e) { data.allergies = data.allergies.replace(/[{}]/g, '').split(',').filter(Boolean); }
+      }
+      if (typeof data.medical_conditions === 'string') {
+        try { data.medical_conditions = JSON.parse(data.medical_conditions); } 
+        catch (e) { data.medical_conditions = data.medical_conditions.replace(/[{}]/g, '').split(',').filter(Boolean); }
+      }
+      if (!Array.isArray(data.allergies)) data.allergies = [];
+      if (!Array.isArray(data.medical_conditions)) data.medical_conditions = [];
+    }
+
     if (typeof window !== 'undefined') {
       localStorage.setItem('hk_profile', JSON.stringify(data));
+      useAppStore.getState().setProfile(data);
     }
 
     const { clearMobileStateCache } = await import('@/components/mobile/auth');
@@ -219,37 +284,94 @@ export const api = {
       if (!data.name && user.user_metadata?.full_name) {
         data.name = user.user_metadata.full_name;
       }
+      
+      // Auto-increment week if dueDate is set
+      const state = useAppStore.getState();
+      const dueDate = state.dueDate;
+      if (dueDate) {
+        const calc = calculatePregnancyFromDueDate(dueDate);
+        if (calc) {
+          let updated = false;
+          if (data.pregnancy_week !== calc.week) {
+            data.pregnancy_week = calc.week;
+            updated = true;
+          }
+          if (data.trimester !== calc.trimester) {
+            data.trimester = calc.trimester;
+            updated = true;
+          }
+          // Optionally sync to db here, but updating local is enough for now
+          if (updated) {
+            supabase.from('pregnancy_profiles').update({ pregnancy_week: calc.week, trimester: calc.trimester }).eq('user_id', user.id).then();
+          }
+        }
+      }
 
       if (typeof window !== 'undefined') {
         localStorage.setItem('hk_profile', JSON.stringify(data));
+        useAppStore.getState().setProfile(data);
       }
     }
     
     return data;
   },
 
-  analyzeBarcode: async (barcode: string): Promise<ScanResult> => {
-    const data = await barcodeStage(barcode);
-    if (!data) throw new Error("Failed to analyze barcode");
-    return storeScan(data, "barcode", barcode);
+  analyzeBarcode: async (barcode: string, frameData?: string): Promise<ScanResult> => {
+    try {
+      let data = await barcodeStage(barcode);
+      if (!data) {
+        console.log("Barcode not found in OFF, falling back to Gemini for:", barcode);
+        if (frameData) {
+          try {
+            data = await geminiVisionScan(frameData);
+          } catch (visionErr: any) {
+            console.warn("Vision scan fallback failed, trying text scan:", visionErr);
+            if (visionErr.message === "NOT_FOOD") {
+              throw visionErr; // Do not fallback to text scan if it's explicitly not food
+            }
+          }
+        }
+        if (!data) {
+           data = await geminiTextScan(`Product with Barcode ${barcode}`);
+        }
+      }
+      if (!data) throw new Error("Failed to analyze barcode");
+      return storeScan(data, "barcode", barcode);
+    } catch (error) {
+      logger.error(error, "analyzeBarcode");
+      throw error;
+    }
   },
 
   analyzeText: async (scanType: "ocr" | "image" | "search", payload: string): Promise<ScanResult> => {
-    let data;
-    if (scanType === "search") {
-      data = await searchStage(payload);
-    } else {
-      data = { detected_food: payload, ingredients: [payload], source: "text" };
+    try {
+      let data;
+      if (scanType === "search") {
+        data = await searchStage(payload);
+        if (!data) {
+          data = await geminiTextScan(payload);
+        }
+      } else {
+        data = { detected_food: payload, ingredients: [payload], source: "text" };
+      }
+      if (!data) throw new Error("Failed to analyze text");
+      return storeScan(data, scanType, payload);
+    } catch (error) {
+      logger.error(error, "analyzeText");
+      throw error;
     }
-    if (!data) throw new Error("Failed to analyze text");
-    return storeScan(data, scanType, payload);
   },
 
   uploadImage: async (file: File): Promise<ScanResult> => {
-    const base64 = await fileToBase64(file);
-    const data = await geminiVisionScan(base64, file.type);
-    if (!data) throw new Error("Failed to process image with Vision AI");
-    return storeScan(data, "image", file.name);
+    try {
+      const base64 = await fileToBase64(file);
+      const data = await geminiVisionScan(base64, file.type);
+      if (!data) throw new Error("Failed to process image with Vision AI");
+      return storeScan(data, "image", file.name);
+    } catch (error) {
+      logger.error(error, "uploadImage");
+      throw error;
+    }
   },
 
   autocomplete: async (q: string): Promise<AutocompleteItem[]> => {
@@ -257,14 +379,20 @@ export const api = {
   },
 
   history: async (): Promise<any[]> => {
-    const user = await getUser();
-    const { data, error } = await supabase
-      .from('scan_records')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    if (error) return [];
-    return data;
+    try {
+      const user = await getUser();
+      const { data, error } = await supabase
+        .from('scan_records')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (error) return [];
+      
+      useAppStore.getState().setScanHistory(data);
+      return data;
+    } catch {
+      return [];
+    }
   },
 
   tips: async () => {
@@ -279,6 +407,8 @@ export const api = {
       .select('id, food_name, last_classification')
       .eq('user_id', user.id);
     if (error) return [];
+    
+    useAppStore.getState().setFavorites(data);
     return data;
   },
 

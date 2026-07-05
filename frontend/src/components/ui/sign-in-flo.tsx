@@ -5,7 +5,7 @@ import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
 import { GoogleSignIn } from "@/components/GoogleSignIn";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface FormFieldProps {
   type: string;
@@ -29,26 +29,22 @@ const AnimatedFormField: React.FC<FormFieldProps> = ({
   showPassword
 }) => {
   const [isFocused, setIsFocused] = useState(false);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [isHovering, setIsHovering] = useState(false);
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setMousePosition({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    });
-  };
 
   return (
     <div className="relative group">
       <div
-        className="relative overflow-hidden rounded-lg border border-border bg-white transition-all duration-300 ease-in-out"
-        onMouseMove={handleMouseMove}
-        onMouseEnter={() => setIsHovering(true)}
-        onMouseLeave={() => setIsHovering(false)}
+        className="relative overflow-hidden transition-all duration-300 ease-in-out"
+        style={{
+          borderRadius: "18px",
+          background: isFocused ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.45)",
+          backdropFilter: "blur(12px)",
+          border: `1.5px solid ${isFocused ? "rgba(244,88,122,0.45)" : "rgba(255,255,255,0.50)"}`,
+          boxShadow: isFocused
+            ? "0 4px 16px rgba(244,88,122,0.08), inset 0 1px 2px rgba(255,255,255,0.30)"
+            : "0 2px 12px rgba(0,0,0,0.03), inset 0 1px 2px rgba(255,255,255,0.30)",
+        }}
       >
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors duration-200 group-focus-within:text-primary">
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200" style={{ color: isFocused ? "var(--pink-hot)" : "var(--text-muted)" }}>
           {icon}
         </div>
         
@@ -58,15 +54,16 @@ const AnimatedFormField: React.FC<FormFieldProps> = ({
           onChange={onChange}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          className="w-full bg-transparent pl-10 pr-12 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none"
+          className="w-full bg-transparent pl-12 pr-12 py-4 font-semibold text-[15px] focus:outline-none"
+          style={{ color: "var(--text-primary)" }}
           placeholder=""
         />
         
-        <label className={`absolute left-10 transition-all duration-200 ease-in-out pointer-events-none ${
+        <label className={`absolute left-12 transition-all duration-200 ease-in-out pointer-events-none ${
           isFocused || value 
-            ? 'top-2 text-xs text-primary font-medium' 
-            : 'top-1/2 -translate-y-1/2 text-sm text-muted-foreground'
-        }`}>
+            ? 'top-2 text-[10px] font-extrabold uppercase tracking-wider' 
+            : 'top-1/2 -translate-y-1/2 text-[15px] font-semibold'
+        }`} style={{ color: isFocused || value ? "var(--pink-hot)" : "var(--text-muted)" }}>
           {placeholder}
         </label>
 
@@ -74,144 +71,16 @@ const AnimatedFormField: React.FC<FormFieldProps> = ({
           <button
             type="button"
             onClick={onToggle}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            className="absolute right-4 top-1/2 -translate-y-1/2 transition-colors"
+            style={{ color: "var(--text-muted)" }}
           >
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
-        )}
-
-        {isHovering && (
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: `radial-gradient(200px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(59, 130, 246, 0.1) 0%, transparent 70%)`
-            }}
-          />
         )}
       </div>
     </div>
   );
 };
-
-const SocialButton: React.FC<{ icon: React.ReactNode; name: string; onClick?: () => void }> = ({ icon, name, onClick }) => {
-  const [isHovered, setIsHovered] = useState(false);
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="relative w-full group p-3 rounded-lg border border-border bg-white hover:bg-accent transition-all duration-300 ease-in-out overflow-hidden flex items-center justify-center gap-2"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <div className={`absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 transition-transform duration-500 ${
-        isHovered ? 'translate-x-0' : '-translate-x-full'
-      }`} />
-      <div className="relative text-foreground group-hover:text-primary transition-colors flex items-center gap-2">
-        {icon}
-        <span className="font-medium">{name}</span>
-      </div>
-    </button>
-  );
-};
-
-const FloatingParticles: React.FC = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const setCanvasSize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-
-    setCanvasSize();
-    window.addEventListener('resize', setCanvasSize);
-
-    class Particle {
-      x: number;
-      y: number;
-      size: number;
-      speedX: number;
-      speedY: number;
-      opacity: number;
-
-      constructor() {
-        this.x = Math.random() * canvas!.width;
-        this.y = Math.random() * canvas!.height;
-        this.size = Math.random() * 2 + 1;
-        this.speedX = (Math.random() - 0.5) * 0.5;
-        this.speedY = (Math.random() - 0.5) * 0.5;
-        this.opacity = Math.random() * 0.3;
-      }
-
-      update() {
-        this.x += this.speedX;
-        this.y += this.speedY;
-
-        if (this.x > canvas!.width) this.x = 0;
-        if (this.x < 0) this.x = canvas!.width;
-        if (this.y > canvas!.height) this.y = 0;
-        if (this.y < 0) this.y = canvas!.height;
-      }
-
-      draw() {
-        if (!ctx) return;
-        ctx.fillStyle = `rgba(59, 130, 246, ${this.opacity})`;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    const particles: Particle[] = [];
-    const particleCount = 50;
-
-    for (let i = 0; i < particleCount; i++) {
-      particles.push(new Particle());
-    }
-
-    const animate = () => {
-      ctx.clearRect(0, 0, canvas!.width, canvas!.height);
-
-      particles.forEach(particle => {
-        particle.update();
-        particle.draw();
-      });
-
-      requestAnimationFrame(animate);
-    };
-
-    animate();
-
-    return () => {
-      window.removeEventListener('resize', setCanvasSize);
-    };
-  }, []);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 pointer-events-none"
-      style={{ zIndex: 1 }}
-    />
-  );
-};
-
-// Custom Google SVG since lucide-react doesn't have it
-const GoogleIcon = ({ size = 20 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-  </svg>
-);
 
 export const Component: React.FC<{ initialIsSignUp?: boolean; onSuccess?: () => void }> = ({ initialIsSignUp = false, onSuccess }) => {
   const router = useRouter();
@@ -261,42 +130,81 @@ export const Component: React.FC<{ initialIsSignUp?: boolean; onSuccess?: () => 
     setErrorMsg("");
   };
 
-  // Google login is now handled by GoogleSignIn component
-
   return (
-    <div className="min-h-screen bg-[var(--bg-cream,white)] flex items-center justify-center p-4 relative overflow-hidden">
-      <FloatingParticles />
+    <div className="min-h-[100dvh] flex items-center justify-center p-5 relative overflow-hidden bg-transparent">
       
-      <div className="relative z-10 w-full max-w-md">
-        <div className="bg-card/80 backdrop-blur-xl border border-border rounded-2xl p-8 shadow-2xl">
+      {/* ── Premium Aurora Animated Background ── */}
+      <div className="aurora-bg">
+        <div className="aurora-blob-3" />
+        <div className="aurora-blob-4" />
+        <div className="aurora-noise" />
+      </div>
+      
+      <div className="relative z-10 w-full max-w-[400px]">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.34, 1.1, 0.64, 1] }}
+          className="glass-card-premium rounded-[32px] p-8 shadow-2xl"
+          style={{
+            background: "rgba(255,255,255,0.60)",
+            backdropFilter: "blur(32px)",
+            WebkitBackdropFilter: "blur(32px)",
+          }}
+        >
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">
-              <User className="w-8 h-8 text-primary" />
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 shadow-sm" style={{
+              background: "rgba(244,88,122,0.12)", border: "1px solid rgba(244,88,122,0.20)"
+            }}>
+              <User size={28} style={{ color: "var(--pink-hot)" }} />
             </div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">
+            <h1 className="text-[28px] font-black font-display tracking-tight" style={{ color: "var(--text-primary)" }}>
               {isSignUp ? 'Create Account' : 'Welcome Back'}
             </h1>
-            <p className="text-muted-foreground">
-              {isSignUp ? 'Sign up to get started' : 'Sign in to continue'}
+            <p className="text-[14px] font-medium mt-1" style={{ color: "var(--text-secondary)" }}>
+              {isSignUp ? 'Sign up to personalize your guide' : 'Sign in to continue your journey'}
             </p>
           </div>
 
-          {errorMsg && (
-            <div className="mb-6 p-3 rounded-lg bg-red-100/50 border border-red-200 text-red-600 text-sm text-center">
-              {errorMsg}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {isSignUp && (
-              <AnimatedFormField
-                type="text"
-                placeholder="Full Name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                icon={<User size={18} />}
-              />
+          <AnimatePresence>
+            {errorMsg && (
+              <motion.div
+                initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                animate={{ opacity: 1, height: "auto", marginBottom: 24 }}
+                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="p-3.5 rounded-[16px] text-[13px] font-bold text-center" style={{
+                  background: "rgba(254,202,202,0.50)",
+                  border: "1px solid rgba(239,68,68,0.25)",
+                  color: "#B91C1C",
+                  backdropFilter: "blur(8px)",
+                }}>
+                  {errorMsg}
+                </div>
+              </motion.div>
             )}
+          </AnimatePresence>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <AnimatePresence mode="popLayout">
+              {isSignUp && (
+                <motion.div
+                  key="name-field"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                >
+                  <AnimatedFormField
+                    type="text"
+                    placeholder="Full Name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    icon={<User size={18} />}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <AnimatedFormField
               type="email"
@@ -317,21 +225,29 @@ export const Component: React.FC<{ initialIsSignUp?: boolean; onSuccess?: () => 
               showPassword={showPassword}
             />
 
-            <div className="flex items-center justify-between">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 text-primary bg-white border-border rounded focus:ring-primary focus:ring-2"
-                />
-                <span className="text-sm text-muted-foreground">Remember me</span>
+            <div className="flex items-center justify-between pt-2 pb-2">
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <div className="relative flex items-center justify-center w-5 h-5 rounded-[6px]" style={{
+                  background: rememberMe ? "var(--pink-hot)" : "rgba(255,255,255,0.50)",
+                  border: `1.5px solid ${rememberMe ? "var(--pink-hot)" : "rgba(255,255,255,0.80)"}`,
+                  transition: "all 0.2s ease"
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="absolute opacity-0 cursor-pointer"
+                  />
+                  {rememberMe && <motion.svg initial={{ scale: 0 }} animate={{ scale: 1 }} viewBox="0 0 24 24" className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></motion.svg>}
+                </div>
+                <span className="text-[13px] font-bold" style={{ color: "var(--text-secondary)" }}>Remember me</span>
               </label>
               
               {!isSignUp && (
                 <button
                   type="button"
-                  className="text-sm text-primary hover:underline"
+                  className="text-[13px] font-extrabold transition-opacity hover:opacity-80"
+                  style={{ color: "var(--pink-hot)" }}
                 >
                   Forgot password?
                 </button>
@@ -341,7 +257,7 @@ export const Component: React.FC<{ initialIsSignUp?: boolean; onSuccess?: () => 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full relative group bg-primary text-primary-foreground py-3 px-4 rounded-lg font-medium transition-all duration-300 ease-in-out hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
+              className="btn-primary w-full h-[56px] text-[16px] mt-2"
             >
               <span className={`transition-opacity duration-200 ${isSubmitting ? 'opacity-0' : 'opacity-100'}`}>
                 {isSignUp ? 'Create Account' : 'Sign In'}
@@ -349,21 +265,19 @@ export const Component: React.FC<{ initialIsSignUp?: boolean; onSuccess?: () => 
               
               {isSubmitting && (
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 </div>
               )}
-              
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
             </button>
           </form>
 
           <div className="mt-8">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border" />
+                <div className="w-full" style={{ borderTop: "1px solid rgba(255,255,255,0.40)" }} />
               </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-card text-muted-foreground">Or continue with</span>
+              <div className="relative flex justify-center text-[12px] font-bold uppercase tracking-wider">
+                <span className="px-3" style={{ background: "transparent", color: "var(--text-muted)" }}>Or continue with</span>
               </div>
             </div>
 
@@ -381,18 +295,19 @@ export const Component: React.FC<{ initialIsSignUp?: boolean; onSuccess?: () => 
           </div>
 
           <div className="mt-8 text-center">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-[14px] font-medium" style={{ color: "var(--text-secondary)" }}>
               {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
               <button
                 type="button"
                 onClick={toggleMode}
-                className="text-primary hover:underline font-medium"
+                className="font-black transition-opacity hover:opacity-80"
+                style={{ color: "var(--pink-hot)" }}
               >
                 {isSignUp ? 'Sign in' : 'Sign up'}
               </button>
             </p>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

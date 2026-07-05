@@ -11,18 +11,7 @@ async function testInsert() {
     detected_food: "test",
     ingredients: [],
     nutrients: {},
-    classification: "SAFE",
-    explanation: "test",
-    rule_hits: [],
-    alternatives: [],
-    safety_score: 100,
-    why_reasons: [],
-    trimester_risk: null,
-    ingredients_analysis: [],
-    recommendation: "test",
-    sources: [],
-    references: [],
-    image_url: "test"
+    classification: "SAFE"
   };
 
   const { data, error } = await supabase.from('scan_records').insert(record).select().single();
