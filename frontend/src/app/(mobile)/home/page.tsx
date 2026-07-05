@@ -78,6 +78,11 @@ function MainHome() {
   const [activeCategory, setActiveCategory] = useState("Veggies");
   const [recommendations, setRecommendations] = useState<RecommendationResponse[]>([]);
   const [isRecommendationsLoading, setIsRecommendationsLoading] = useState(true);
+  const [loadedImagesCount, setLoadedImagesCount] = useState(0);
+
+  useEffect(() => {
+    setLoadedImagesCount(0);
+  }, [activeCategory, recommendations]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Array<{ id: number; title: string; body: string; type: "info" | "warning" | "success" }>>([]);
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -519,10 +524,14 @@ function MainHome() {
               </button>
             </div>
 
-            {isRecommendationsLoading ? (
-              <AnimatedLoadingSkeleton />
-            ) : (
-              <div className="grid grid-cols-2 gap-4">
+            <div className="relative">
+              {(isRecommendationsLoading || (dashboardFilteredItems.length > 0 && loadedImagesCount < dashboardFilteredItems.length)) && (
+                <div className="absolute inset-0 z-20 w-full h-full">
+                  <AnimatedLoadingSkeleton />
+                </div>
+              )}
+              
+              <div className="grid grid-cols-2 gap-4" style={{ opacity: (isRecommendationsLoading || (dashboardFilteredItems.length > 0 && loadedImagesCount < dashboardFilteredItems.length)) ? 0 : 1, transition: 'opacity 0.3s' }}>
                 {dashboardFilteredItems.length > 0 ? (
                   dashboardFilteredItems.map((item, index) => (
                     <motion.div
@@ -537,7 +546,13 @@ function MainHome() {
                     >
                       <div className="absolute inset-0 rounded-[24px]" style={{ background: `linear-gradient(160deg, ${item.bg} 0%, transparent 60%)` }} />
                       <div className="relative flex h-24 items-center justify-center mb-2 overflow-hidden rounded-[18px]">
-                        <img src={item.img} alt={item.name} className="h-full w-full object-cover rounded-[18px] drop-shadow-xl transition-transform duration-500 group-hover:scale-105" />
+                        <img 
+                          src={item.img} 
+                          alt={item.name} 
+                          onLoad={() => setLoadedImagesCount(prev => prev + 1)}
+                          onError={() => setLoadedImagesCount(prev => prev + 1)}
+                          className="h-full w-full object-cover rounded-[18px] drop-shadow-xl transition-transform duration-500 group-hover:scale-105" 
+                        />
                       </div>
                       <h3 className="relative z-[2] text-[14px] font-extrabold line-clamp-1" style={{ color: "var(--text-primary)" }}>{item.name}</h3>
                       <p className="relative z-[2] text-[11px] font-semibold mb-2 line-clamp-1" style={{ color: "var(--text-muted)" }}>{item.sub}</p>
@@ -560,7 +575,7 @@ function MainHome() {
                   </div>
                 )}
               </div>
-            )}
+            </div>
 
           </motion.div>
         )}
