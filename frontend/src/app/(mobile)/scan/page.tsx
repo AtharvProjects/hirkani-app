@@ -12,6 +12,8 @@ import { GlassCard } from "@/components/GlassCard";
 import { UnifiedScanInterface } from "@/components/UnifiedScanInterface";
 import { PageTransition } from "@/components/mobile/PageTransition";
 // Dynamically imported: import { BrowserMultiFormatReader, DecodeHintType, BarcodeFormat } from "@zxing/library";
+
+import { useTranslation } from "@/lib/i18n";
 import { ScreenHeader } from "@/components/mobile/ScreenHeader";
 import { getMobileState } from "@/components/mobile/auth";
 import { api, ScanResult } from "@/lib/api";
@@ -20,13 +22,16 @@ import { useAppStore } from "@/store/useAppStore";
 import { App } from "@capacitor/app";
 
 function AnimatedLoader() {
+  const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
   const [textIndex, setTextIndex] = useState(0);
   const texts = [
     "Scanning product details...",
-    "Analyzing nutritional profile...",
-    "Cross-referencing food databases...",
-    "Evaluating pregnancy safety..."
+    t('scan.analyze'),
+    "Decoding ingredients list...",
+    "Cross-referencing FDA safety guidelines...",
+    "Checking allergy and diet profiles...",
+    "Finalizing safety report..."
   ];
 
   useEffect(() => {
@@ -94,6 +99,7 @@ function AnimatedLoader() {
 }
 
 function ScanContent() {
+  const { t } = useTranslation();
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const [authed, setAuthed] = useState(false);
@@ -315,7 +321,7 @@ function ScanContent() {
   if (isLoading) {
     return (
       <PageTransition>
-        <ScreenHeader title="Scan Food" subtitle="Barcode, label OCR, or food image" />
+        <ScreenHeader title={t('scan.title')} subtitle={t('scan.subtitle')} />
       </PageTransition>
     );
   }
@@ -323,7 +329,7 @@ function ScanContent() {
   if (!authed || !profileDone) {
     return (
       <PageTransition>
-        <ScreenHeader title="Scan Food" subtitle="Barcode, label OCR, or food image" />
+        <ScreenHeader title={t('scan.title')} subtitle={t('scan.subtitle')} />
         <GlassCard>
           <div className="flex flex-col items-center text-center p-2">
             <p className="text-[14px] font-semibold mb-4" style={{ color: "var(--text-secondary)" }}>
@@ -344,8 +350,8 @@ function ScanContent() {
   return (
     <PageTransition>
       <ScreenHeader
-        title="Scan Food"
-        subtitle="Tap camera or enter label details"
+        title={t('scan.title')}
+        subtitle={t('scan.subtitle')}
         right={
           <div
             className="flex h-11 w-11 items-center justify-center rounded-full"
@@ -376,7 +382,7 @@ function ScanContent() {
         {!isSearching && scanHistory.length > 0 && (
           <div className="mt-2">
             <div className="flex items-center justify-between mb-4 px-4">
-              <h3 className="text-[18px] font-extrabold font-display" style={{ color: "var(--text-primary)" }}>Recent Scans</h3>
+              <h3 className="text-[18px] font-extrabold font-display" style={{ color: "var(--text-primary)" }}>{t('scan.recent')}</h3>
             </div>
             <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-4 px-4 snap-x">
               {scanHistory.map((scan) => (
@@ -446,7 +452,7 @@ function ScanContent() {
                     setResult(scanData as ScanResult);
                   }}
                 >
-                  <div className="absolute top-4 right-4">
+                  <div className="absolute top-3 right-3 flex gap-1">
                     <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ background: scan.classification === "SAFE" ? "#10B981" : scan.classification === "CONSUME_WITH_CAUTION" ? "#F59E0B" : "#EF4444" }} />
                   </div>
                   {scanThumbnails[scan.id] ? (

@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { X, Heart, Utensils, Dna, Bone, Brain, Activity, Leaf, Sparkles, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import { GlassCard } from "./GlassCard";
+import { useTranslation } from "@/lib/i18n";
 import type { ScanResult, SafetyClass } from "@/lib/api";
 
 interface Props {
@@ -50,13 +51,15 @@ function getNutrientIcon(name: string) {
 }
 
 export function FoodSafetyResult({ result, onClose, onSaveFavorite, isSaved }: Props) {
+  const { t } = useTranslation();
+  
   const isSafe = result.classification === "SAFE";
   const isCaution = result.classification === "CONSUME_WITH_CAUTION";
   
   const mapping = {
     SAFE: {
-      label: "SAFE TO EAT",
-      sublabel: "Safe to consume during pregnancy 🌟",
+      label: t('scan.safeLabel'),
+      sublabel: t('scan.safeSub'),
       icon: CheckCircle2,
       themeColor: "#059669",
       gradient: "linear-gradient(to bottom, rgba(16,185,129,0) 0%, rgba(16,185,129,0.2) 100%)",
@@ -64,8 +67,8 @@ export function FoodSafetyResult({ result, onClose, onSaveFavorite, isSaved }: P
       bgGradient: "bg-gradient-to-br from-green-100 to-green-50"
     },
     CONSUME_WITH_CAUTION: {
-      label: "EAT IN MODERATION",
-      sublabel: "Enjoy in moderation — ask your doctor 💛",
+      label: t('scan.cautionLabel'),
+      sublabel: t('scan.cautionSub'),
       icon: AlertTriangle,
       themeColor: "#D97706",
       gradient: "linear-gradient(to bottom, rgba(245,158,11,0) 0%, rgba(245,158,11,0.2) 100%)",
@@ -73,8 +76,8 @@ export function FoodSafetyResult({ result, onClose, onSaveFavorite, isSaved }: P
       bgGradient: "bg-gradient-to-br from-amber-100 to-amber-50"
     },
     AVOID_DURING_PREGNANCY: {
-      label: "NOT RECOMMENDED",
-      sublabel: "Not recommended for expecting mothers 🚫",
+      label: t('scan.avoidLabel'),
+      sublabel: t('scan.avoidSub'),
       icon: XCircle,
       themeColor: "#DC2626",
       gradient: "linear-gradient(to bottom, rgba(239,68,68,0) 0%, rgba(239,68,68,0.2) 100%)",

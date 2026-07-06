@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Baby, Salad, ShieldAlert, Apple, ChevronLeft, ArrowRight } from "lucide-react";
+import { Loader2, Baby, Salad, ShieldAlert, Apple, ChevronLeft, ArrowRight, Languages } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
+import { useTranslation, LanguageCode } from "@/lib/i18n";
 
 const DIETS = ["Veg", "Non Veg", "Vegan", "Pescatarian"];
 const COMMON_ALLERGIES = ["None", "Dairy", "Nuts", "Gluten", "Seafood"];
@@ -19,7 +20,10 @@ export function OnboardingProfile({
   onCancel?: () => void;
 }) {
   const [step, setStep] = useState(1);
-  const totalSteps = 3;
+  const totalSteps = 4;
+  
+  const { t, language } = useTranslation();
+  const setLanguage = require('@/store/useAppStore').useAppStore((s: any) => s.setLanguage);
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -79,7 +83,7 @@ export function OnboardingProfile({
 
   const handleNext = () => {
     setErrorMsg("");
-    if (step === 1) {
+    if (step === 2) {
       const parsedAge = parseInt(age);
       if (isNaN(parsedAge) || parsedAge < 13 || parsedAge > 55) {
         setErrorMsg("Please enter a valid age (13-55).");
@@ -196,8 +200,8 @@ export function OnboardingProfile({
         {/* Progress Indicator */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="flex gap-2 items-center mt-2">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-1.5 w-6 rounded-full transition-colors duration-300" style={{
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-1.5 w-5 rounded-full transition-colors duration-300" style={{
                 background: step >= i ? "var(--pink-hot)" : "rgba(0,0,0,0.08)"
               }} />
             ))}
@@ -220,13 +224,13 @@ export function OnboardingProfile({
               boxShadow: "0 8px 32px rgba(244,88,122,0.20), inset 0 1px 0 rgba(255,255,255,0.70)",
             }}
           >
-            <Apple size={24} style={{ color: "var(--pink-hot)" }} />
+            {step === 1 ? <Languages size={24} style={{ color: "var(--pink-hot)" }} /> : <Apple size={24} style={{ color: "var(--pink-hot)" }} />}
           </motion.div>
           <h2 className="text-[26px] font-black tracking-tight font-display leading-tight" style={{ color: "var(--text-primary)" }}>
-            {step === 1 ? "Let's setup your profile" : step === 2 ? "What do you eat?" : "Any health guidelines?"}
+            {step === 1 ? t("onboarding.chooseLanguage") : step === 2 ? "Let's setup your profile" : step === 3 ? "What do you eat?" : "Any health guidelines?"}
           </h2>
           <p className="text-[14px] font-medium mt-1.5" style={{ color: "var(--text-secondary)" }}>
-            {step === 1 ? "Help us customize your pregnancy food guide." : step === 2 ? "We'll tailor food safety to your diet." : "We'll watch out for these conditions."}
+            {step === 1 ? "This applies to all app features." : step === 2 ? "Help us customize your pregnancy food guide." : step === 3 ? "We'll tailor food safety to your diet." : "We'll watch out for these conditions."}
           </p>
         </div>
 
@@ -243,6 +247,32 @@ export function OnboardingProfile({
               className="glass-card-premium p-6 w-full"
             >
               {step === 1 && (
+                <div className="space-y-4">
+                  {[
+                    { code: "en", label: "English" },
+                    { code: "mr", label: "मराठी (Marathi)" },
+                    { code: "hi", label: "हिन्दी (Hindi)" }
+                  ].map((lang) => (
+                    <button
+                      key={lang.code}
+                      onClick={() => { setLanguage(lang.code); handleNext(); }}
+                      className="w-full relative flex items-center justify-between p-4 rounded-[20px] transition-all duration-300"
+                      style={{
+                        background: language === lang.code ? "rgba(255,255,255,1)" : "rgba(255,255,255,0.5)",
+                        border: language === lang.code ? "2px solid var(--pink-hot)" : "1px solid rgba(0,0,0,0.05)",
+                        boxShadow: language === lang.code ? "0 8px 24px rgba(244,88,122,0.15)" : "none",
+                      }}
+                    >
+                      <span className="text-[16px] font-bold" style={{ color: "var(--text-primary)" }}>{lang.label}</span>
+                      <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors ${language === lang.code ? 'border-[var(--pink-hot)]' : 'border-gray-300'}`}>
+                        {language === lang.code && <div className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--pink-hot)" }} />}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              
+              {step === 2 && (
                 <div className="space-y-6">
                   <div>
                     <label className="block text-[11px] font-extrabold uppercase tracking-[0.18em] mb-2 ml-1" style={{ color: "var(--text-muted)" }}>
@@ -288,7 +318,7 @@ export function OnboardingProfile({
                 </div>
               )}
 
-              {step === 2 && (
+              {step === 3 && (
                 <div className="space-y-6">
                   <div>
                     <SectionLabel icon={Salad} label="Diet Preference" />
@@ -323,7 +353,7 @@ export function OnboardingProfile({
                 </div>
               )}
 
-              {step === 3 && (
+              {step === 4 && (
                 <div className="space-y-6">
                   <div>
                     <SectionLabel icon={Baby} label="Medical Conditions" />

@@ -2,6 +2,7 @@ import { PregnancyProfile, RecommendationResponse, RecommendationItem } from './
 
 export async function getDailyTips(profile: any, count: number = 2) {
   const trimester = profile?.trimester || 2;
+  const language = profile?.preferences?.language || "en";
   const conditions = profile?.medical_conditions?.length ? profile.medical_conditions.join(", ") : "none";
   const allergies = profile?.allergies?.length ? profile.allergies.join(", ") : "none";
   const diet = profile?.diet_preference || "general";
@@ -12,7 +13,7 @@ export async function getDailyTips(profile: any, count: number = 2) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ profile, count })
+      body: JSON.stringify({ profile, count, language })
     });
 
     const result = await response.json();

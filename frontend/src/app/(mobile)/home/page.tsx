@@ -17,6 +17,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { setupPushNotifications } from "@/lib/notifications";
 import { App } from "@capacitor/app";
 import AnimatedLoadingSkeleton from "@/components/AnimatedLoadingSkeleton";
+import { useTranslation } from "@/lib/i18n";
 
 
 /* ─── Glass Bottom Sheet wrapper ─── */
@@ -80,6 +81,7 @@ function MainHome() {
   const [isRecommendationsLoading, setIsRecommendationsLoading] = useState(true);
   const [loadedImagesCount, setLoadedImagesCount] = useState(0);
   const [forceShowImages, setForceShowImages] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     setLoadedImagesCount(0);
@@ -337,8 +339,8 @@ function MainHome() {
             </span>
           </div>
           <div className="relative z-10">
-            <div className="text-[13px] font-black leading-tight" style={{ color: "var(--text-primary)" }}>Water Goal</div>
-            <div className="text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>{dailyWater >= 8 ? 'Hydrated!' : 'Tap to drink'}</div>
+            <div className="text-[13px] font-black leading-tight" style={{ color: "var(--text-primary)" }}>{t('home.waterGoal')}</div>
+            <div className="text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>{t('home.tapToDrink')}</div>
           </div>
         </div>
         
@@ -357,8 +359,8 @@ function MainHome() {
             </div>
           </div>
           <div>
-            <div className="text-[13px] font-black leading-tight" style={{ color: "var(--text-primary)" }}>Vitamins</div>
-            <div className="text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>{tookVitamin ? 'Taken today' : 'Tap to mark'}</div>
+            <div className="text-[13px] font-black leading-tight" style={{ color: "var(--text-primary)" }}>{t('home.vitamins')}</div>
+            <div className="text-[10px] font-bold" style={{ color: "var(--text-muted)" }}>{tookVitamin ? t('home.takenToday') : t('home.notTaken')}</div>
           </div>
         </div>
       </div>
@@ -369,7 +371,7 @@ function MainHome() {
             <Search size={18} style={{ color: "var(--text-muted)" }} />
           </div>
           <input
-            type="text" placeholder="Search any food..."
+            type="text" placeholder={t('home.searchFood')}
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -516,17 +518,11 @@ function MainHome() {
 
             <div className="mb-5 flex items-center justify-between">
               <div>
-                <h2 className="text-[20px] font-extrabold font-display" style={{ color: "var(--text-primary)" }}>Recommended</h2>
-                {profile?.pregnancy_week && (
-                  <p className="text-[11px] font-bold" style={{ color: "var(--text-muted)" }}>Best for Week {profile.pregnancy_week}</p>
-                )}
+                <h3 className="text-[20px] font-black tracking-tight font-display" style={{ color: "var(--text-primary)" }}>{t('home.recommended')}</h3>
+                <p className="text-[11px] font-extrabold uppercase tracking-wide mt-0.5" style={{ color: "var(--text-muted)" }}>{t('home.bestForWeek')} {profile?.pregnancy_week || 1}</p>
               </div>
-              <button
-                onClick={() => setShowSeeAllModal(true)}
-                className="text-[12px] font-bold transition-opacity active:opacity-65 flex items-center gap-0.5"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                See all →
+              <button onClick={() => setShowSeeAllModal(true)} className="text-[13px] font-bold hover:underline" style={{ color: "var(--text-primary)" }}>
+                {t('home.seeAll')}
               </button>
             </div>
 

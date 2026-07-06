@@ -132,7 +132,16 @@ async function storeScan(data: any, scanType: string, payloadStr: string): Promi
     thumbnail_base64: imageUrl
   };
 
-  const { data: inserted, error } = await supabase.from('scan_records').insert(dbRecordToInsert).select().single();
+  let { data: inserted, error } = await supabase.from('scan_records').insert(dbRecordToInsert).select().single();
+  
+  if (error && error.message.includes('thumbnail_base64')) {
+    console.warn("thumbnail_base64 column missing in Supabase, retrying without it.");
+    const { thumbnail_base64, ...dbRecordWithoutThumbnail } = dbRecordToInsert;
+    const retryResult = await supabase.from('scan_records').insert(dbRecordWithoutThumbnail).select().single();
+    inserted = retryResult.data;
+    error = retryResult.error;
+  }
+
   if (error) {
     console.error("Failed to save scan record:", JSON.stringify(error, null, 2));
     logger.error(error, "Supabase storeScan failure");
@@ -231,7 +240,8 @@ export const api = {
       tookVitamin: state.tookVitamin,
       lastTrackedDate: state.lastTrackedDate,
       streakCount: state.streakCount,
-      lastStreakDate: state.lastStreakDate
+      lastStreakDate: state.lastStreakDate,
+      language: state.language
     };
     
     const payload = { 
@@ -242,12 +252,24 @@ export const api = {
       preferences: prefs
     };
     
-    const { data, error } = await supabase
+    let result = await supabase
       .from('pregnancy_profiles')
       .upsert(payload, { onConflict: 'user_id' })
       .select()
       .single();
-    if (error) throw new Error(error.message);
+
+    if (result.error && result.error.message.includes('preferences')) {
+      console.warn("Preferences column missing in Supabase, retrying without it.");
+      const { preferences, ...payloadWithoutPrefs } = payload;
+      result = await supabase
+        .from('pregnancy_profiles')
+        .upsert(payloadWithoutPrefs, { onConflict: 'user_id' })
+        .select()
+        .single();
+    }
+
+    if (result.error) throw new Error(result.error.message);
+    const data = result.data;
     
     if (data) {
       if (typeof data.allergies === 'string') {
@@ -282,7 +304,8 @@ export const api = {
         tookVitamin: state.tookVitamin,
         lastTrackedDate: state.lastTrackedDate,
         streakCount: state.streakCount,
-        lastStreakDate: state.lastStreakDate
+        lastStreakDate: state.lastStreakDate,
+        language: state.language
       };
       await supabase
         .from('pregnancy_profiles')
@@ -363,7 +386,8 @@ export const api = {
         console.log("Barcode not found in OFF, falling back to Gemini for:", barcode);
         if (frameData) {
           try {
-            data = await geminiVisionScan(frameData);
+            const lang = useAppStore.getState().language || 'en';
+            data = await geminiVisionScan(frameData, "image/jpeg", lang);
           } catch (visionErr: any) {
             console.warn("Vision scan fallback failed, trying text scan:", visionErr);
             if (visionErr.message === "NOT_FOOD") {
@@ -372,7 +396,8 @@ export const api = {
           }
         }
         if (!data) {
-           data = await geminiTextScan(`Product with Barcode ${barcode}`);
+           const lang = useAppStore.getState().language || 'en';
+           data = await geminiTextScan(`Product with Barcode ${barcode}`, lang);
         }
       }
       if (!data) throw new Error("Failed to analyze barcode");
@@ -389,7 +414,8 @@ export const api = {
       if (scanType === "search") {
         data = await searchStage(payload);
         if (!data) {
-          data = await geminiTextScan(payload);
+          const lang = useAppStore.getState().language || 'en';
+          data = await geminiTextScan(payload, lang);
         }
       } else {
         data = { detected_food: payload, ingredients: [payload], source: "text" };
@@ -405,7 +431,8 @@ export const api = {
   uploadImage: async (file: File): Promise<ScanResult> => {
     try {
       const base64 = await fileToBase64(file);
-      const data = await geminiVisionScan(base64, file.type);
+      const lang = useAppStore.getState().language || 'en';
+      const data = await geminiVisionScan(base64, file.type, lang);
       if (!data) throw new Error("Failed to process image with Vision AI");
       return storeScan(data, "image", file.name);
     } catch (error) {

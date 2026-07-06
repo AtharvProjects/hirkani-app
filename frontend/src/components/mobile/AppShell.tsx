@@ -14,6 +14,7 @@ const tabs = [
 
 import { useAppStore } from "@/store/useAppStore";
 import { useState, useEffect } from "react";
+import { useTranslation } from "@/lib/i18n";
 
 export function useKeyboardOpen() {
   const [isOpen, setIsOpen] = useState(false);
@@ -54,6 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { profile } = useAppStore();
   const isProfileIncomplete = !profile;
   const isKeyboardOpen = useKeyboardOpen();
+  const { t } = useTranslation();
 
   return (
     <div
@@ -166,7 +168,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     fontWeight: active ? 800 : 600,
                   }}
                 >
-                  {tab.label}
+                  {t(`nav.${tab.label.toLowerCase()}`)}
                 </motion.span>
               </Link>
             );

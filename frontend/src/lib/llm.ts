@@ -1,4 +1,4 @@
-export async function geminiVisionScan(base64Image: string, mimeType: string = "image/jpeg") {
+export async function geminiVisionScan(base64Image: string, mimeType: string = "image/jpeg", language: string = "en") {
   try {
     const prompt = `Analyze this food or product image for a pregnant woman's safety assistant. Identify the food item/product accurately. If it has a label, read the ingredients list and brand. You MUST output a single raw JSON object matching this schema exactly without markdown formatting or code blocks:
 {
@@ -17,7 +17,9 @@ CRITICAL INSTRUCTION: If the image clearly DOES NOT contain any food, beverage, 
   "error": "not_food"
 }
 
-If it is a raw single ingredient food (like a raw papaya or banana or apple), list that raw item as the single ingredient. For example, if it's papaya, the ingredients list MUST be ['papaya'].`;
+If it is a raw single ingredient food (like a raw papaya or banana or apple), list that raw item as the single ingredient. For example, if it's papaya, the ingredients list MUST be ['papaya'].
+
+CRITICAL INSTRUCTION FOR LOCALIZATION: You MUST output all string values (like detected_food and all items in the ingredients array) in the language denoted by code: ${language}. For example, if language is 'mr', output everything in Marathi.`;
 
     const apiKey = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
     if (!apiKey) throw new Error("Missing OpenRouter API Key");
@@ -81,7 +83,7 @@ If it is a raw single ingredient food (like a raw papaya or banana or apple), li
   }
 }
 
-export async function geminiTextScan(foodName: string) {
+export async function geminiTextScan(foodName: string, language: string = "en") {
   try {
     const prompt = `Analyze this food or product for a pregnant woman's safety assistant: "${foodName}". 
 Identify the food item/product accurately. Provide its typical ingredients and nutritional values.
@@ -101,7 +103,9 @@ CRITICAL INSTRUCTION: If the query refers to a non-food item, or if it is just a
 {
   "error": "not_food"
 }
-If it is a raw single ingredient food (like a raw papaya or banana or apple), list that raw item as the single ingredient. For example, if it's papaya, the ingredients list MUST be ['papaya'].`;
+If it is a raw single ingredient food (like a raw papaya or banana or apple), list that raw item as the single ingredient. For example, if it's papaya, the ingredients list MUST be ['papaya'].
+
+CRITICAL INSTRUCTION FOR LOCALIZATION: You MUST output all string values (like detected_food and all items in the ingredients array) in the language denoted by code: ${language}. For example, if language is 'mr', output everything in Marathi.`;
 
     const apiKey = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
     if (!apiKey) throw new Error("Missing OpenRouter API Key");

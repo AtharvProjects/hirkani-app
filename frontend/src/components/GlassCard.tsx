@@ -10,6 +10,7 @@ interface GlassCardProps {
   variant?: "default" | "strong" | "premium" | "subtle";
   glow?: boolean;
   interactive?: boolean;
+  overflowVisible?: boolean;
 }
 
 export function GlassCard({
@@ -19,6 +20,7 @@ export function GlassCard({
   variant = "default",
   glow = false,
   interactive = false,
+  overflowVisible = false,
 }: GlassCardProps) {
   const variantClass =
     variant === "premium"
@@ -32,7 +34,7 @@ export function GlassCard({
       whileTap={interactive ? { scale: 0.98 } : undefined}
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
       className={`${variantClass} p-5 mb-4 ${glow ? "glow-pink" : ""} ${className}`}
-      style={{ position: "relative" }}
+      style={{ position: "relative", overflow: overflowVisible ? "visible" : undefined }}
     >
       {title ? (
         <h3

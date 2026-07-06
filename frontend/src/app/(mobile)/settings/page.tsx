@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Shield, Smartphone, LogOut, Lock, ChevronRight } from "lucide-react";
-import { motion } from "framer-motion";
+import { Bell, Shield, Smartphone, LogOut, Lock, ChevronRight, Languages } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation, LanguageCode } from "@/lib/i18n";
 
 import { GlassCard } from "@/components/GlassCard";
 import { PageTransition } from "@/components/mobile/PageTransition";
@@ -22,8 +23,11 @@ const staggerItem = {
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { t, language } = useTranslation();
+  const setLanguage = useAppStore(s => s.setLanguage);
   const [tips, setTips] = useState(true);
   const [haptics, setHaptics] = useState(true);
+  const [showLangMenu, setShowLangMenu] = useState(false);
 
   useEffect(() => {
     const savedTips = localStorage.getItem("hk_setting_tips");
@@ -99,7 +103,7 @@ export default function SettingsScreen() {
 
   return (
     <PageTransition>
-      <ScreenHeader title="Settings" subtitle="Preferences & privacy" />
+      <ScreenHeader title={t('settings.title')} subtitle="Preferences & privacy" />
 
       <motion.div
         variants={staggerContainer}
@@ -117,6 +121,70 @@ export default function SettingsScreen() {
               checked={tips}
               onChange={handleTipsChange}
             />
+          </GlassCard>
+        </motion.div>
+
+        {/* Language */}
+        <motion.div variants={staggerItem} className="relative z-50">
+          <GlassCard title={t('settings.language')} overflowVisible={true}>
+            <div className="relative">
+              <button
+                onClick={() => setShowLangMenu(!showLangMenu)}
+                className="w-full flex items-center justify-between rounded-[20px] p-4 cursor-pointer transition-all active:scale-[0.99]"
+                style={{
+                  background: "rgba(255,255,255,0.30)",
+                  backdropFilter: "blur(12px)",
+                  WebkitBackdropFilter: "blur(12px)",
+                  border: "1px solid rgba(255,255,255,0.40)",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.35)",
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full shrink-0" style={{ background: "rgba(244,88,122,0.08)", border: "1px solid rgba(244,88,122,0.15)" }}>
+                    <Languages size={17} style={{ color: "var(--pink-hot)" }} />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-[14px] font-extrabold text-gray-900">{t('settings.changeLanguage')}</div>
+                    <div className="text-[11px] font-semibold text-gray-500 mt-0.5">
+                      {language === 'en' ? 'English' : language === 'mr' ? 'मराठी (Marathi)' : 'हिन्दी (Hindi)'}
+                    </div>
+                  </div>
+                </div>
+                <ChevronRight size={16} className="text-gray-400" />
+              </button>
+              
+              <AnimatePresence>
+                {showLangMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute top-[105%] left-0 w-full z-50 rounded-[20px] overflow-hidden"
+                    style={{
+                      background: "rgba(255,255,255,0.95)",
+                      backdropFilter: "blur(16px)",
+                      border: "1px solid rgba(244,88,122,0.2)",
+                      boxShadow: "0 12px 40px rgba(0,0,0,0.12)"
+                    }}
+                  >
+                    {[
+                      { code: 'en', label: 'English' },
+                      { code: 'mr', label: 'मराठी (Marathi)' },
+                      { code: 'hi', label: 'हिन्दी (Hindi)' }
+                    ].map(lang => (
+                      <button
+                        key={lang.code}
+                        onClick={() => { setLanguage(lang.code as LanguageCode); setShowLangMenu(false); }}
+                        className="w-full text-left px-5 py-4 text-[14px] font-bold border-b border-gray-100 last:border-0 hover:bg-rose-50 transition-colors flex items-center justify-between"
+                      >
+                        <span className={language === lang.code ? "text-[var(--pink-hot)]" : "text-gray-700"}>{lang.label}</span>
+                        {language === lang.code && <div className="h-2 w-2 rounded-full bg-[var(--pink-hot)]" />}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </GlassCard>
         </motion.div>
 
@@ -221,7 +289,7 @@ export default function SettingsScreen() {
             }}
           >
             <LogOut size={18} />
-            Log Out
+            {t('settings.logout')}
           </button>
         </motion.div>
       </motion.div>

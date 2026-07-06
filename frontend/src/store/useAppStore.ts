@@ -4,6 +4,7 @@ import { PregnancyProfile } from '@/lib/api';
 
 interface AppState {
   isAuthed: boolean;
+  language: 'en' | 'mr' | 'hi';
   profile: PregnancyProfile | null;
   favorites: any[];
   scanHistory: any[];
@@ -20,6 +21,7 @@ interface AppState {
   scanThumbnails: Record<string, string>;
   setScanThumbnail: (id: string, base64: string) => void;
   
+  setLanguage: (language: 'en' | 'mr' | 'hi') => void;
   setAuthed: (isAuthed: boolean) => void;
   setProfile: (profile: PregnancyProfile | null) => void;
   setDueDate: (date: string | null) => void;
@@ -42,6 +44,7 @@ export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
       isAuthed: false,
+      language: 'en',
       profile: null,
       dueDate: null,
       favorites: [],
@@ -53,6 +56,10 @@ export const useAppStore = create<AppState>()(
       streakCount: 0,
       lastStreakDate: null,
       
+      setLanguage: (language) => {
+        set({ language });
+        import('@/lib/api').then(({ api }) => api.syncPreferences());
+      },
       setAuthed: (isAuthed) => set({ isAuthed }),
       setProfile: (profile) => set({ profile }),
       setDueDate: (dueDate) => {
@@ -126,12 +133,14 @@ export const useAppStore = create<AppState>()(
           lastTrackedDate: prefs.lastTrackedDate ?? state.lastTrackedDate,
           streakCount: prefs.streakCount ?? state.streakCount,
           lastStreakDate: prefs.lastStreakDate ?? state.lastStreakDate,
+          language: prefs.language ?? state.language,
         };
       }),
       
       clearState: () => set({ 
         isAuthed: false, profile: null, dueDate: null, favorites: [], scanHistory: [],
-        dailyWater: 0, tookVitamin: false, lastTrackedDate: null, streakCount: 0, lastStreakDate: null
+        dailyWater: 0, tookVitamin: false, lastTrackedDate: null, streakCount: 0, lastStreakDate: null,
+        language: 'en'
       }),
     }),
     {
@@ -140,6 +149,7 @@ export const useAppStore = create<AppState>()(
         isAuthed: state.isAuthed, 
         profile: state.profile,
         dueDate: state.dueDate,
+        language: state.language,
         favorites: state.favorites,
         scanHistory: state.scanHistory,
         dailyWater: state.dailyWater,

@@ -4,7 +4,7 @@ export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
-    const { profile, count = 2 } = await req.json();
+    const { profile, count = 2, language = "en" } = await req.json();
 
     const trimester = profile?.trimester || 2;
     const conditions = profile?.medical_conditions?.length ? profile.medical_conditions.join(", ") : "none";
@@ -14,7 +14,9 @@ export async function POST(req: Request) {
     const prompt = `Generate exactly ${count} short, medically sound daily pregnancy tips for a woman in trimester ${trimester}. Medical conditions: ${conditions}. Allergies: ${allergies}. Diet: ${diet}. Format as a JSON object with a 'tips' key containing a list of exactly ${count} string tips.
 {
   "tips": ["Tip 1", "Tip 2"${count > 2 ? ', "Tip 3", "Tip 4", "Tip 5", "Tip 6", "Tip 7"' : ''}]
-}`;
+}
+
+CRITICAL INSTRUCTION FOR LOCALIZATION: You MUST output all string values (i.e. the tips themselves) in the language denoted by code: ${language}. For example, if language is 'mr', output the tips in Marathi.`;
 
     const apiKey = process.env.OPENROUTER_API_KEY || process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
     if (!apiKey) {
