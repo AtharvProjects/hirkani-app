@@ -79,9 +79,15 @@ function MainHome() {
   const [recommendations, setRecommendations] = useState<RecommendationResponse[]>([]);
   const [isRecommendationsLoading, setIsRecommendationsLoading] = useState(true);
   const [loadedImagesCount, setLoadedImagesCount] = useState(0);
+  const [forceShowImages, setForceShowImages] = useState(false);
 
   useEffect(() => {
     setLoadedImagesCount(0);
+    setForceShowImages(false);
+    const t = setTimeout(() => {
+      setForceShowImages(true);
+    }, 800); // 800ms max wait for images
+    return () => clearTimeout(t);
   }, [activeCategory, recommendations]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Array<{ id: number; title: string; body: string; type: "info" | "warning" | "success" }>>([]);
@@ -525,13 +531,13 @@ function MainHome() {
             </div>
 
             <div className="relative">
-              {(isRecommendationsLoading || (dashboardFilteredItems.length > 0 && loadedImagesCount < dashboardFilteredItems.length)) && (
-                <div className="absolute inset-0 z-20 w-full h-full">
+              {(isRecommendationsLoading || (!forceShowImages && dashboardFilteredItems.length > 0 && loadedImagesCount < dashboardFilteredItems.length)) && (
+                <div className="absolute inset-0 z-20 w-full h-full bg-white/40 backdrop-blur-sm rounded-[24px]">
                   <AnimatedLoadingSkeleton />
                 </div>
               )}
               
-              <div className="grid grid-cols-2 gap-4" style={{ opacity: (isRecommendationsLoading || (dashboardFilteredItems.length > 0 && loadedImagesCount < dashboardFilteredItems.length)) ? 0 : 1, transition: 'opacity 0.3s' }}>
+              <div className="grid grid-cols-2 gap-4" style={{ opacity: (isRecommendationsLoading || (!forceShowImages && dashboardFilteredItems.length > 0 && loadedImagesCount < dashboardFilteredItems.length)) ? 0 : 1, transition: 'opacity 0.3s' }}>
                 {dashboardFilteredItems.length > 0 ? (
                   dashboardFilteredItems.map((item, index) => (
                     <motion.div
