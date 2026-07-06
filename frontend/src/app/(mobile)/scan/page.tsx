@@ -11,7 +11,7 @@ import { SafetyBadge } from "@/components/Badge";
 import { GlassCard } from "@/components/GlassCard";
 import { UnifiedScanInterface } from "@/components/UnifiedScanInterface";
 import { PageTransition } from "@/components/mobile/PageTransition";
-import { BrowserMultiFormatReader, DecodeHintType, BarcodeFormat } from "@zxing/library";
+// Dynamically imported: import { BrowserMultiFormatReader, DecodeHintType, BarcodeFormat } from "@zxing/library";
 import { ScreenHeader } from "@/components/mobile/ScreenHeader";
 import { getMobileState } from "@/components/mobile/auth";
 import { api, ScanResult } from "@/lib/api";
@@ -243,6 +243,7 @@ function ScanContent() {
         console.warn("Failed to downscale captured image, decoding original:", scaleErr);
       }
 
+      const { BrowserMultiFormatReader, DecodeHintType } = await import("@zxing/library");
       const hints = new Map();
       hints.set(DecodeHintType.TRY_HARDER, true);
 

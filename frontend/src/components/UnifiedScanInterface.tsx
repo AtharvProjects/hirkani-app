@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Camera, Image as ImageIcon, ScanBarcode, FileText, ChevronRight, Loader2 } from "lucide-react";
 import { api, ScanResult } from "@/lib/api";
 import { Camera as CapCamera, CameraResultType, CameraSource } from "@capacitor/camera";
-import { BrowserMultiFormatReader, DecodeHintType } from "@zxing/library";
+// Dynamically imported to prevent bundle bloat: import { BrowserMultiFormatReader, DecodeHintType } from "@zxing/library";
 
 interface UnifiedScanInterfaceProps {
   onBarcodeDetected: (code: string, frameData?: string) => void;
@@ -26,7 +26,7 @@ export function UnifiedScanInterface({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const readerRef = useRef<any>(null); // Type any for dynamically loaded BrowserMultiFormatReader
 
   useEffect(() => {
     let active = true;
@@ -49,6 +49,7 @@ export function UnifiedScanInterface({
           await videoRef.current.play();
           setStreamActive(true);
 
+          const { BrowserMultiFormatReader, DecodeHintType } = await import("@zxing/library");
           const hints = new Map();
           hints.set(DecodeHintType.TRY_HARDER, true);
           const reader = new BrowserMultiFormatReader(hints);
@@ -129,9 +130,13 @@ export function UnifiedScanInterface({
       return;
     }
 
-    startCamera();
+    // Delay camera start slightly to allow the page transition to complete buttery smooth
+    const timeoutId = setTimeout(() => {
+      startCamera();
+    }, 450);
 
     return () => {
+      clearTimeout(timeoutId);
       active = false;
       if (readerRef.current) {
         readerRef.current.reset();
