@@ -33,7 +33,7 @@ export function GlassCard({
     <motion.section
       whileTap={interactive ? { scale: 0.98 } : undefined}
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
-      className={`${variantClass} p-5 mb-4 ${glow ? "glow-pink" : ""} ${className}`}
+      className={`${variantClass} p-5 mb-4 ${glow ? "glow-accent" : ""} ${className}`}
       style={{ position: "relative", overflow: overflowVisible ? "visible" : undefined }}
     >
       {title ? (

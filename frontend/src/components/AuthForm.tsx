@@ -44,21 +44,21 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       <div className="space-y-3">
         {!isLogin ? (
           <input
-            className="h-14 w-full rounded-[20px] bg-white/60 px-4 text-sm font-medium text-gray-800 placeholder-gray-500 shadow-inner outline-none transition focus:bg-white/90 focus:ring-2 focus:ring-pink-400"
+            className="h-14 w-full rounded-[20px] bg-white/60 px-4 text-sm font-medium text-gray-800 placeholder-gray-500 shadow-inner outline-none transition focus:bg-white/90 focus:ring-2 focus:ring-blue-500"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Full Name"
           />
         ) : null}
         <input 
-          className="h-14 w-full rounded-[20px] bg-white/60 px-4 text-sm font-medium text-gray-800 placeholder-gray-500 shadow-inner outline-none transition focus:bg-white/90 focus:ring-2 focus:ring-pink-400" 
+          className="h-14 w-full rounded-[20px] bg-white/60 px-4 text-sm font-medium text-gray-800 placeholder-gray-500 shadow-inner outline-none transition focus:bg-white/90 focus:ring-2 focus:ring-blue-500" 
           value={email} 
           onChange={(e) => setEmail(e.target.value)} 
           placeholder="Email Address" 
           type="email"
         />
         <input 
-          className="h-14 w-full rounded-[20px] bg-white/60 px-4 text-sm font-medium text-gray-800 placeholder-gray-500 shadow-inner outline-none transition focus:bg-white/90 focus:ring-2 focus:ring-pink-400" 
+          className="h-14 w-full rounded-[20px] bg-white/60 px-4 text-sm font-medium text-gray-800 placeholder-gray-500 shadow-inner outline-none transition focus:bg-white/90 focus:ring-2 focus:ring-blue-500" 
           type="password" 
           value={password} 
           onChange={(e) => setPassword(e.target.value)} 

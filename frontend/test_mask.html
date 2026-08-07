@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; background: #e0d4f5; font-family: sans-serif; display: flex; justify-content: center; height: 100vh; overflow: hidden;}
+  .phone { width: 390px; height: 844px; background: white; position: relative; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
+  .bg-image {
+    position: absolute; top: 0; left: 0; width: 100%; height: auto;
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, black 40%, transparent 42%, transparent 100%);
+    mask-image: linear-gradient(to bottom, black 0%, black 40%, transparent 42%, transparent 100%);
+    z-index: 20; pointer-events: none;
+  }
+  .card {
+    position: absolute; top: 40%; left: 5%; width: 90%; height: 60%;
+    background: #FCF8FB; border-radius: 36px; z-index: 10;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.08);
+    padding: 30px; box-sizing: border-box; text-align: center;
+    /* Move the card up to meet the avatar's arms */
+    transform: translateY(-50px);
+  }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div style="position:absolute; inset:0; background: linear-gradient(to bottom, #C9BBF5, #F5D3E8, #E2CEF1); z-index: 1;"></div>
+    <img class="bg-image" src="public/avatar_original.png" />
+    <div class="card">
+      <h1 style="color: #2E295E; margin-top: 20px;">Welcome Back!</h1>
+      <p style="color: #8F8CAE;">Login to continue</p>
+    </div>
+  </div>
+</body>
+</html>

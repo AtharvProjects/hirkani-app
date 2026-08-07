@@ -67,7 +67,7 @@ function AnimatedLoader() {
           transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
           className="mb-6 flex h-20 w-20 items-center justify-center rounded-full shadow-lg z-10"
           style={{
-            background: "linear-gradient(135deg, var(--pink-hot) 0%, #FF9A9E 100%)",
+            background: "linear-gradient(135deg, var(--accent-main) 0%, #8E8E93 100%)",
           }}
         >
           <ScanLine size={32} className="text-white" />
@@ -180,7 +180,7 @@ function ScanContent() {
       } else {
         setScanError({
           title: "Barcode Not Found",
-          message: `Barcode "${code}" was not found in the global food database.\n\nPlease tap the pink Camera Shutter button below to scan the ingredients list directly!`
+          message: `Barcode "${code}" was not found in the global food database.\n\nPlease tap the blue Camera Shutter button below to scan the ingredients list directly!`
         });
       }
       
@@ -356,12 +356,12 @@ function ScanContent() {
           <div
             className="flex h-11 w-11 items-center justify-center rounded-full"
             style={{
-              background: "rgba(244,88,122,0.12)",
-              border: "1.5px solid rgba(244,88,122,0.25)",
+              background: "rgba(0, 122, 255,0.12)",
+              border: "1.5px solid rgba(0, 122, 255,0.25)",
               backdropFilter: "blur(12px)",
             }}
           >
-            <Clock size={18} style={{ color: "var(--pink-hot)" }} />
+            <Clock size={18} style={{ color: "var(--accent-main)" }} />
           </div>
         }
       />
@@ -390,11 +390,11 @@ function ScanContent() {
                   key={scan.id} 
                   className="shrink-0 w-36 h-36 rounded-[22px] p-4 snap-start relative overflow-hidden flex flex-col justify-between active:scale-[0.97] transition-transform cursor-pointer"
                   style={{
-                    background: "rgba(255,255,255,0.40)",
+                    background: "var(--glass-bg-medium)",
                     backdropFilter: "blur(12px)",
                     WebkitBackdropFilter: "blur(12px)",
-                    border: "1px solid rgba(255,255,255,0.6)",
-                    boxShadow: "0 8px 24px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.4)"
+                    border: "1px solid var(--glass-bg-elevated)",
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.03), inset 0 1px 0 var(--glass-bg-medium)"
                   }}
                   onClick={async () => {
                     const parsed = (field: any) => {
@@ -456,12 +456,12 @@ function ScanContent() {
                     <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ background: scan.classification === "SAFE" ? "#10B981" : scan.classification === "CONSUME_WITH_CAUTION" ? "#F59E0B" : "#EF4444" }} />
                   </div>
                   {scanThumbnails[scan.id] ? (
-                    <div className="h-12 w-12 rounded-[14px] overflow-hidden mb-2 relative shrink-0" style={{ border: "1px solid rgba(244,88,122,0.15)" }}>
+                    <div className="h-12 w-12 rounded-[14px] overflow-hidden mb-2 relative shrink-0" style={{ border: "1px solid rgba(0, 122, 255,0.15)" }}>
                       <img src={scanThumbnails[scan.id]} alt={scan.detected_food} className="w-full h-full object-cover" />
                     </div>
                   ) : (
-                    <div className="h-12 w-12 rounded-[14px] flex items-center justify-center mb-2 shrink-0" style={{ background: "rgba(244,88,122,0.1)", border: "1px solid rgba(244,88,122,0.15)" }}>
-                      <Clock size={20} style={{ color: "var(--pink-hot)" }} />
+                    <div className="h-12 w-12 rounded-[14px] flex items-center justify-center mb-2 shrink-0" style={{ background: "rgba(0, 122, 255,0.1)", border: "1px solid rgba(0, 122, 255,0.15)" }}>
+                      <Clock size={20} style={{ color: "var(--accent-main)" }} />
                     </div>
                   )}
                   <div>
@@ -502,7 +502,7 @@ function ScanContent() {
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               className="bg-white w-full max-w-[340px] rounded-[32px] p-6 flex flex-col items-center text-center shadow-2xl relative overflow-hidden"
               style={{
-                border: "1px solid rgba(255,255,255,0.8)",
+                border: "1px solid var(--glass-bg-elevated)",
               }}
             >
               <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-rose-50 to-white" />
@@ -522,7 +522,7 @@ function ScanContent() {
               <button
                 onClick={() => setScanError(null)}
                 className="w-full h-[52px] rounded-full text-white font-bold text-[16px] z-10 active:scale-[0.98] transition-transform"
-                style={{ background: "var(--pink-hot)", boxShadow: "0 4px 14px rgba(255, 42, 95, 0.3)" }}
+                style={{ background: "var(--accent-main)", boxShadow: "0 4px 14px rgba(255, 42, 95, 0.3)" }}
               >
                 Got it
               </button>

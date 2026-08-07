@@ -68,6 +68,19 @@ interface Props {
 export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEditProfile }: Props) {
   const [showDetails, setShowDetails] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [direction, setDirection] = useState(0);
+
+  const handlePrev = () => {
+    if (pregnancyWeek + weekOffset <= 1) return;
+    setDirection(-1);
+    setWeekOffset(o => o - 1);
+  };
+
+  const handleNext = () => {
+    if (pregnancyWeek + weekOffset >= 42) return;
+    setDirection(1);
+    setWeekOffset(o => o + 1);
+  };
 
   const displayWeek = Math.max(1, Math.min(42, pregnancyWeek + weekOffset));
   const milestone = getMilestone(displayWeek);
@@ -92,7 +105,7 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
     return list;
   }, []);
 
-  const trimesterColor = displayTrimester === 1 ? "#10B981" : displayTrimester === 2 ? "#F59E0B" : "#F4587A";
+  const trimesterColor = displayTrimester === 1 ? "#10B981" : displayTrimester === 2 ? "#F59E0B" : "#007AFF";
   const trimesterLabel = displayTrimester === 1 ? "1st Trimester" : displayTrimester === 2 ? "2nd Trimester" : "3rd Trimester";
 
   return (
@@ -100,17 +113,39 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
       <div className="glass-card-premium w-full mb-5" style={{ padding: 0 }}>
         {/* Animated aura blobs behind the baby */}
         <div className="absolute -top-12 -right-12 h-40 w-40 rounded-full opacity-25 pointer-events-none animate-pulse-glow"
-          style={{ background: "radial-gradient(circle, var(--pink-hot), transparent)", filter: "blur(20px)" }} />
+          style={{ background: "radial-gradient(circle, var(--accent-main), transparent)", filter: "blur(20px)" }} />
         <div className="absolute -bottom-8 -left-8 h-28 w-28 rounded-full opacity-20 pointer-events-none animate-float"
-          style={{ background: "radial-gradient(circle, var(--peach), transparent)", filter: "blur(20px)" }} />
+          style={{ background: "radial-gradient(circle, var(--accent-tertiary), transparent)", filter: "blur(20px)" }} />
 
-        <div className="flex items-center justify-between px-5 pt-5 pb-3 relative z-10">
-          <button
-            onClick={() => setWeekOffset(o => Math.max(o - 1, -(pregnancyWeek - 1)))}
-            className="flex h-9 w-9 items-center justify-center rounded-full transition-transform active:scale-[0.85]"
-            style={{ background: "rgba(244,88,122,0.10)", border: "1px solid rgba(244,88,122,0.20)", backdropFilter: "blur(8px)" }}
+        <AnimatePresence mode="wait" initial={false} custom={direction}>
+          <motion.div
+            key={displayWeek}
+            custom={direction}
+            initial={{ opacity: 0, x: direction > 0 ? 40 : -40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: direction > 0 ? -40 : 40 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.2}
+            onDragEnd={(e, { offset, velocity }) => {
+              const swipe = Math.abs(offset.x) * velocity.x;
+              const swipeThreshold = 5000;
+              if (swipe < -swipeThreshold || offset.x < -100) {
+                handleNext();
+              } else if (swipe > swipeThreshold || offset.x > 100) {
+                handlePrev();
+              }
+            }}
+            className="w-full relative z-10"
           >
-            <ChevronLeft size={16} style={{ color: "var(--pink-hot)" }} />
+            <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <button
+            onClick={handlePrev}
+            className="flex h-9 w-9 items-center justify-center rounded-full transition-transform active:scale-[0.85] touch-manipulation"
+            style={{ background: "rgba(255, 255, 255, 0.3)", border: "1px solid rgba(255, 255, 255, 0.5)", backdropFilter: "blur(8px)" }}
+          >
+            <ChevronLeft size={16} style={{ color: "var(--text-primary)" }} />
           </button>
 
           <div className="text-center">
@@ -123,18 +158,18 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
           </div>
 
           <button
-            onClick={() => setWeekOffset(o => Math.min(o + 1, 42 - pregnancyWeek))}
-            className="flex h-9 w-9 items-center justify-center rounded-full transition-transform active:scale-[0.85]"
-            style={{ background: "rgba(244,88,122,0.10)", border: "1px solid rgba(244,88,122,0.20)", backdropFilter: "blur(8px)" }}
+            onClick={handleNext}
+            className="flex h-9 w-9 items-center justify-center rounded-full transition-transform active:scale-[0.85] touch-manipulation"
+            style={{ background: "rgba(255, 255, 255, 0.3)", border: "1px solid rgba(255, 255, 255, 0.5)", backdropFilter: "blur(8px)" }}
           >
-            <ChevronRight size={16} style={{ color: "var(--pink-hot)" }} />
+            <ChevronRight size={16} style={{ color: "var(--text-primary)" }} />
           </button>
         </div>
 
-        <div className="flex items-center justify-between px-4 pb-3 relative z-10">
+        <div className="flex items-center justify-between px-4 pb-3">
           {calendarDays.map((day) => (
             <div key={day.offset} className="flex flex-col items-center gap-1">
-              <span className={`text-[9px] font-extrabold uppercase tracking-wider transition-colors duration-300 ${day.isToday ? 'text-[var(--pink-hot)]' : ''}`}
+              <span className={`text-[9px] font-extrabold uppercase tracking-wider transition-colors duration-300 ${day.isToday ? 'text-[var(--accent-main)]' : ''}`}
                 style={{ color: day.isToday ? undefined : "var(--text-muted)" }}>
                 {day.dayLabel}
               </span>
@@ -143,10 +178,10 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
                   day.isToday ? 'shadow-md scale-110' : ''
                 }`}
                 style={day.isToday ? {
-                  background: "linear-gradient(135deg, var(--pink-hot), var(--coral))",
+                  background: "linear-gradient(135deg, var(--accent-main), var(--accent-sec))",
                   color: "#fff",
                   fontWeight: 900,
-                  boxShadow: "0 4px 12px rgba(244,88,122,0.35)",
+                  boxShadow: "var(--glass-shadow-elevated)",
                 } : {
                   color: "var(--text-secondary)",
                 }}
@@ -157,7 +192,7 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
           ))}
         </div>
 
-        <div className="flex flex-col items-center px-5 pt-2 pb-5 relative z-10">
+        <div className="flex flex-col items-center px-5 pt-2 pb-5">
           <div className="text-[10px] font-extrabold uppercase tracking-[0.25em] mb-2"
             style={{ color: trimesterColor }}>
             {babyStage.label}
@@ -188,7 +223,7 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
             {displayWeek} weeks
           </h2>
           <p className="text-[14px] font-bold mb-4" style={{ color: "var(--text-secondary)" }}>
-            Baby is the size of a <span style={{ color: "var(--pink-hot)", fontWeight: 900 }}>{milestone.size}</span>
+            Baby is the size of a <span style={{ color: "var(--accent-main)", fontWeight: 900 }}>{milestone.size}</span>
           </p>
 
           <div className="w-full mb-5">
@@ -197,15 +232,15 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
               <span>{daysRemaining > 0 ? `${daysRemaining} days to go` : "Due any day! 🎉"}</span>
               <span>Week 40</span>
             </div>
-            <div className="h-2.5 w-full rounded-full overflow-hidden relative" style={{ background: "rgba(255,255,255,0.40)", border: "1px solid rgba(255,255,255,0.60)", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.05)" }}>
+            <div className="h-2.5 w-full rounded-full overflow-hidden relative" style={{ background: "var(--glass-bg-medium)", border: "1px solid var(--glass-bg-elevated)", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.05)" }}>
               <motion.div
                 className="absolute left-0 top-0 bottom-0 rounded-full"
                 initial={{ width: 0 }}
                 animate={{ width: `${progressPercent}%` }}
                 transition={{ duration: 1.2, ease: [0.34, 1.1, 0.64, 1] }}
                 style={{
-                  background: "linear-gradient(90deg, var(--pink-hot), var(--coral))",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.30)",
+                  background: "linear-gradient(90deg, var(--accent-main), var(--accent-sec))",
+                  boxShadow: "inset 0 1px 0 var(--glass-bg-medium)",
                 }}
               />
             </div>
@@ -219,6 +254,8 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
             View Pregnancy Details
           </button>
         </div>
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       <Portal>
@@ -237,18 +274,26 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
                 onClick={() => setShowDetails(false)}
               />
               <motion.div
+                drag="y"
+                dragConstraints={{ top: 0, bottom: 0 }}
+                dragElastic={{ top: 0, bottom: 0.5 }}
+                onDragEnd={(e, { offset, velocity }) => {
+                  if (offset.y > 100 || velocity.y > 500) {
+                    setShowDetails(false);
+                  }
+                }}
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 28, stiffness: 240 }}
                 className="relative w-full max-w-[440px] rounded-t-[32px] p-6 pb-6 border-t border-white/40 shadow-2xl flex flex-col max-h-[85vh]"
-                style={{ background: "rgba(255, 255, 255, 0.75)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", willChange: "transform" }}
+                style={{ background: "var(--glass-bg-elevated)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", willChange: "transform" }}
               >
                 <div className="w-12 h-1 bg-black/10 rounded-full mx-auto mb-4 shrink-0" />
                 <button
                   onClick={() => setShowDetails(false)}
                   className="absolute top-6 right-5 h-9 w-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                  style={{ background: "rgba(255,255,255,0.50)", border: "1px solid rgba(255,255,255,0.60)", backdropFilter: "blur(8px)" }}
+                  style={{ background: "var(--glass-bg-medium)", border: "1px solid var(--glass-bg-elevated)", backdropFilter: "blur(8px)" }}
                 >
                   <X size={16} style={{ color: "var(--text-secondary)" }} />
                 </button>
@@ -261,11 +306,11 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
                 </p>
 
                 <div className="flex-1 overflow-y-auto space-y-3.5 scrollbar-hide">
-                  <div className="rounded-[24px] p-5" style={{ background: "rgba(255,255,255,0.60)", border: "1px solid rgba(255,255,255,0.70)", boxShadow: "0 4px 16px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.60)" }}>
+                  <div className="rounded-[24px] p-5" style={{ background: "var(--glass-bg-elevated)", border: "1px solid var(--glass-bg-elevated)", boxShadow: "0 4px 16px rgba(0,0,0,0.03), inset 0 1px 0 var(--glass-bg-elevated)" }}>
                     <div className="flex items-center gap-3">
                       <div className="flex h-11 w-11 items-center justify-center rounded-full shrink-0"
-                        style={{ background: "rgba(244,88,122,0.12)" }}>
-                        <Ruler size={18} style={{ color: "var(--pink-hot)" }} />
+                        style={{ background: "rgba(0, 122, 255,0.12)" }}>
+                        <Ruler size={18} style={{ color: "var(--accent-main)" }} />
                       </div>
                       <div>
                         <div className="text-[11px] font-extrabold uppercase tracking-wider mb-0.5" style={{ color: "var(--text-muted)" }}>Baby Size</div>
@@ -274,7 +319,7 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
                     </div>
                   </div>
 
-                  <div className="rounded-[24px] p-5" style={{ background: "rgba(255,255,255,0.60)", border: "1px solid rgba(255,255,255,0.70)", boxShadow: "0 4px 16px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.60)" }}>
+                  <div className="rounded-[24px] p-5" style={{ background: "var(--glass-bg-elevated)", border: "1px solid var(--glass-bg-elevated)", boxShadow: "0 4px 16px rgba(0,0,0,0.03), inset 0 1px 0 var(--glass-bg-elevated)" }}>
                     <div className="flex items-center gap-3">
                       <div className="flex h-11 w-11 items-center justify-center rounded-full shrink-0"
                         style={{ background: "rgba(16,185,129,0.12)" }}>
@@ -287,7 +332,7 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
                     </div>
                   </div>
 
-                  <div className="rounded-[24px] p-5" style={{ background: "rgba(255,255,255,0.60)", border: "1px solid rgba(255,255,255,0.70)", boxShadow: "0 4px 16px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.60)" }}>
+                  <div className="rounded-[24px] p-5" style={{ background: "var(--glass-bg-elevated)", border: "1px solid var(--glass-bg-elevated)", boxShadow: "0 4px 16px rgba(0,0,0,0.03), inset 0 1px 0 var(--glass-bg-elevated)" }}>
                     <div className="flex items-center gap-3">
                       <div className="flex h-11 w-11 items-center justify-center rounded-full shrink-0"
                         style={{ background: "rgba(245,158,11,0.12)" }}>
@@ -300,22 +345,22 @@ export function PregnancyTrackerWidget({ pregnancyWeek = 1, trimester = 1, onEdi
                     </div>
                   </div>
 
-                  <div className="rounded-[24px] p-5" style={{ background: "rgba(244,88,122,0.04)", border: "1px solid rgba(244,88,122,0.10)" }}>
+                  <div className="rounded-[24px] p-5" style={{ background: "rgba(0, 122, 255,0.04)", border: "1px solid rgba(0, 122, 255,0.10)" }}>
                     <div className="flex items-center gap-3 mb-4">
                       <div className="flex h-11 w-11 items-center justify-center rounded-full shrink-0"
-                        style={{ background: "rgba(244,88,122,0.10)" }}>
-                        <Activity size={18} style={{ color: "var(--pink-hot)" }} />
+                        style={{ background: "rgba(0, 122, 255,0.10)" }}>
+                        <Activity size={18} style={{ color: "var(--accent-main)" }} />
                       </div>
                       <div>
                         <div className="text-[11px] font-extrabold uppercase tracking-wider mb-0.5" style={{ color: "var(--text-muted)" }}>Progress</div>
                         <div className="text-[15px] font-black" style={{ color: "var(--text-primary)" }}>{Math.round(progressPercent)}% complete</div>
                       </div>
                     </div>
-                    <div className="h-2.5 w-full rounded-full overflow-hidden relative" style={{ background: "rgba(255,255,255,0.50)", border: "1px solid rgba(255,255,255,0.60)" }}>
+                    <div className="h-2.5 w-full rounded-full overflow-hidden relative" style={{ background: "var(--glass-bg-medium)", border: "1px solid var(--glass-bg-elevated)" }}>
                       <div className="absolute left-0 top-0 bottom-0 rounded-full" style={{
                         width: `${progressPercent}%`,
-                        background: "linear-gradient(90deg, var(--pink-hot), var(--coral))",
-                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.30)",
+                        background: "linear-gradient(90deg, var(--accent-main), var(--accent-sec))",
+                        boxShadow: "inset 0 1px 0 var(--glass-bg-medium)",
                       }} />
                     </div>
                     <div className="flex justify-between mt-2.5 mb-1 text-[10px] font-extrabold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>

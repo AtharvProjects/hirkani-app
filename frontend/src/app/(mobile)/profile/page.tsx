@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Baby, Salad, ShieldAlert, Edit3, Heart, Share2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PregnancyTrackerWidget } from "@/components/PregnancyTrackerWidget";
@@ -24,13 +25,17 @@ const staggerItem = {
   show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.34, 1.1, 0.64, 1] } },
 };
 
-export default function ProfileScreen() {
+// Wrap searchParams logic in a inner component to allow Suspense wrapper for Next.js App Router
+function ProfileScreenInner() {
   const isAuthed = useAppStore(state => state.isAuthed);
   const profile = useAppStore(state => state.profile);
   const favorites = useAppStore(state => state.favorites);
 
+  const searchParams = useSearchParams();
+  const shouldEdit = searchParams.get('edit') === 'true';
+
   const [mounted, setMounted] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(shouldEdit);
   const [deleteModal, setDeleteModal] = useState<number | null>(null);
   const [modalState, setModalState] = useState<{ title: string, message: string } | null>(null);
 
@@ -162,9 +167,9 @@ export default function ProfileScreen() {
                       >
                         <div
                           className="flex h-7 w-7 items-center justify-center rounded-full"
-                          style={{ background: "rgba(244,88,122,0.10)", border: "1px solid rgba(244,88,122,0.15)" }}
+                          style={{ background: "var(--glass-bg-elevated)", border: "1px solid var(--glass-bg-medium)" }}
                         >
-                          <Icon size={13} style={{ color: "var(--pink-hot)" }} />
+                          <Icon size={13} style={{ color: "var(--text-primary)" }} />
                         </div>
                         {label}
                       </span>
@@ -186,7 +191,7 @@ export default function ProfileScreen() {
                       className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wider mb-2"
                       style={{ color: "var(--text-muted)" }}
                     >
-                      <ShieldAlert size={13} style={{ color: "var(--pink-hot)" }} />
+                      <ShieldAlert size={13} style={{ color: "var(--accent-main)" }} />
                       Conditions
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -220,7 +225,7 @@ export default function ProfileScreen() {
                       className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wider mb-2"
                       style={{ color: "var(--text-muted)" }}
                     >
-                      <Heart size={13} style={{ color: "var(--pink-hot)" }} />
+                      <Heart size={13} style={{ color: "var(--accent-main)" }} />
                       Allergies
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -314,7 +319,7 @@ export default function ProfileScreen() {
               <button 
                 className="btn-primary h-[56px] flex-1 px-1 text-[13.5px] whitespace-nowrap" 
                 onClick={handleExportToDoctor}
-                style={{ background: "rgba(14, 165, 233, 0.9)", boxShadow: "0 8px 24px rgba(14, 165, 233, 0.25)" }}
+                style={{ background: "var(--text-primary)", color: "var(--bg-base)", boxShadow: "0 8px 24px rgba(0, 0, 0, 0.15)" }}
               >
                 <Share2 size={16} className="mr-1.5" />
                 Share w/ Doctor
@@ -342,7 +347,7 @@ export default function ProfileScreen() {
                 <button
                   onClick={() => setDeleteModal(null)}
                   className="px-5 py-2.5 rounded-[18px] text-[14px] font-bold transition-all active:scale-[0.97]"
-                  style={{ background: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.50)", color: "var(--text-primary)" }}
+                  style={{ background: "var(--glass-bg-medium)", border: "1px solid var(--glass-bg-medium)", color: "var(--text-primary)" }}
                 >
                   Cancel
                 </button>
@@ -381,5 +386,13 @@ export default function ProfileScreen() {
         )}
       </AnimatePresence>
     </>
+  );
+}
+
+export default function ProfileScreen() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading...</div>}>
+      <ProfileScreenInner />
+    </Suspense>
   );
 }

@@ -20,7 +20,7 @@ export function ScreenHeader({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, ease: [0.34, 1.1, 0.64, 1] }}
           className="text-[10px] font-extrabold uppercase tracking-[0.28em] mb-1"
-          style={{ color: "var(--pink-hot)", opacity: 0.75 }}
+          style={{ color: "var(--accent-main)", opacity: 0.75 }}
         >
           HIRKANI
         </motion.div>

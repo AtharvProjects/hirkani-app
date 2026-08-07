@@ -60,6 +60,7 @@ export interface RecommendationItem {
   reasons: string[];
   benefit: string;
   tags: string[];
+  score?: number;
 }
 
 export interface RecommendationResponse {
@@ -96,8 +97,8 @@ async function getUser() {
 }
 
 async function storeScan(data: any, scanType: string, payloadStr: string): Promise<ScanResult> {
-  const user = await getUser();
-  const profile = await api.getProfile() || {};
+  const { data: { user } } = await supabase.auth.getUser();
+  const profile = (await api.getProfile()) || useAppStore.getState().profile || {};
   
   let aiAllergies: string[] = [];
   if (profile.allergies && profile.allergies.length > 0) {
@@ -117,20 +118,32 @@ async function storeScan(data: any, scanType: string, payloadStr: string): Promi
   const imageUrl = data.image_url || null;
 
   const dbRecordToInsert = {
-    user_id: user.id,
-    scan_type: scanType,
-    input_value: payloadStr,
+    user_id: user?.id,
+    scan_type: scanType ? scanType.substring(0, 20) : scanType,
+    input_value: payloadStr ? payloadStr.substring(0, 255) : payloadStr, // Assuming input_value might be longer
     detected_food: data.detected_food,
     ingredients: JSON.stringify(data.ingredients || []),
     nutrients: JSON.stringify(data.nutrients || {}),
     additives: "[]",
-    classification: evalResult.final,
+    classification: evalResult.final === "AVOID_DURING_PREGNANCY" ? "AVOID" : evalResult.final,
     explanation,
     rule_hits: JSON.stringify(evalResult.ruleHits),
     alternatives: JSON.stringify(evalResult.alternatives),
     references: JSON.stringify(evalResult.references),
     thumbnail_base64: imageUrl
   };
+
+  // Skip database insert if guest user
+  if (!user) {
+    return {
+      ...dbRecordToInsert,
+      id: Date.now(),
+      created_at: new Date().toISOString(),
+      ingredients: data.ingredients,
+      nutrients: data.nutrients,
+      why_reasons: evalResult.ruleHits.map(r => r.message)
+    } as any;
+  }
 
   let { data: inserted, error } = await supabase.from('scan_records').insert(dbRecordToInsert).select().single();
   
@@ -201,6 +214,14 @@ export const api = {
     if (error) throw new Error(error.message);
     const { clearMobileStateCache } = await import('@/components/mobile/auth');
     clearMobileStateCache();
+    
+    // IKEA Effect: Sync guest profile to server if they just created one and have no server profile
+    const guestProfile = useAppStore.getState().profile;
+    const serverProfile = await api.getProfile().catch(() => null);
+    if (!serverProfile && guestProfile) {
+      await api.saveProfile(guestProfile).catch(console.error);
+    }
+    
     await api.getProfile().catch(console.error);
     useAppStore.getState().setAuthed(true);
     return data;
@@ -217,6 +238,15 @@ export const api = {
     }
     const { clearMobileStateCache } = await import('@/components/mobile/auth');
     clearMobileStateCache();
+    
+    // IKEA Effect: Sync guest profile to server if they just created one
+    const guestProfile = useAppStore.getState().profile;
+    const serverProfile = await api.getProfile().catch(() => null);
+    if (!serverProfile && guestProfile) {
+      await api.saveProfile(guestProfile).catch(console.error);
+    }
+    
+    await api.getProfile().catch(console.error);
     useAppStore.getState().setAuthed(true);
     return data;
   },
@@ -232,7 +262,8 @@ export const api = {
   },
 
   saveProfile: async (body: PregnancyProfile) => {
-    const user = await getUser();
+    const { data: { user } } = await supabase.auth.getUser();
+    
     const state = useAppStore.getState();
     const prefs = {
       dueDate: state.dueDate,
@@ -243,6 +274,15 @@ export const api = {
       lastStreakDate: state.lastStreakDate,
       language: state.language
     };
+    
+    // If no user, just save locally for guest onboarding
+    if (!user) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('hk_profile', JSON.stringify(body));
+        useAppStore.getState().setProfile(body);
+      }
+      return body;
+    }
     
     const payload = { 
       user_id: user.id, 
@@ -296,7 +336,9 @@ export const api = {
 
   syncPreferences: async () => {
     try {
-      const user = await getUser();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return; // Silent return for guest users
+      
       const state = useAppStore.getState();
       const prefs = {
         dueDate: state.dueDate,
@@ -317,7 +359,9 @@ export const api = {
   },
 
   getProfile: async (): Promise<PregnancyProfile | null> => {
-    const user = await getUser();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return useAppStore.getState().profile; // Use local profile for guests
+    
     const { data, error } = await supabase
       .from('pregnancy_profiles')
       .select('*')
@@ -445,30 +489,33 @@ export const api = {
     return autocompleteStage(q);
   },
 
-  history: async (): Promise<any[]> => {
-    try {
-      const user = await getUser();
-      const { data, error } = await supabase
-        .from('scan_records')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      if (error) return [];
+  history: async (): Promise<ScanResult[]> => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+    
+    const { data, error } = await supabase
+      .from('scan_records')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50);
+      
+    if (error) return [];
       
       const store = useAppStore.getState();
       store.setScanHistory(data);
       
-      // Hydrate thumbnails
+      // Hydrate thumbnails & fix classification length limits
       data.forEach(record => {
+        if (record.classification === "AVOID") {
+          record.classification = "AVOID_DURING_PREGNANCY";
+        }
         if (record.thumbnail_base64 && record.id) {
           store.setScanThumbnail(record.id.toString(), record.thumbnail_base64);
         }
       });
       
       return data;
-    } catch {
-      return [];
-    }
   },
 
   tips: async () => {
@@ -477,7 +524,9 @@ export const api = {
   },
 
   favorites: async (): Promise<{ id: number; food_name: string; last_classification: string }[]> => {
-    const user = await getUser();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+    
     const { data, error } = await supabase
       .from('favorite_foods')
       .select('id, food_name, last_classification')
@@ -488,11 +537,13 @@ export const api = {
     return data;
   },
 
-  addFavorite: async (food_name: string, last_classification: string) => {
-    const user = await getUser();
+  addFavorite: async (foodName: string, classification: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Must be logged in to save favorites");
+    
     const { data, error } = await supabase
       .from('favorite_foods')
-      .insert({ user_id: user.id, food_name, last_classification })
+      .insert({ user_id: user.id, food_name: foodName, last_classification: classification })
       .select()
       .single();
     if (error) throw new Error(error.message);

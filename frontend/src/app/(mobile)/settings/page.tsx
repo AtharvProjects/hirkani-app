@@ -52,7 +52,7 @@ export default function SettingsScreen() {
     sublabel,
     checked,
     onChange,
-    iconColor = "var(--pink-hot)",
+    iconColor = "var(--accent-main)",
   }: {
     icon: any;
     label: string;
@@ -64,19 +64,19 @@ export default function SettingsScreen() {
     <label
       className="flex items-center justify-between rounded-[20px] p-4 cursor-pointer transition-all active:scale-[0.99]"
       style={{
-        background: "rgba(255,255,255,0.30)",
+        background: "var(--glass-bg-medium)",
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
-        border: "1px solid rgba(255,255,255,0.40)",
-        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.35)",
+        border: "1px solid var(--glass-bg-medium)",
+        boxShadow: "inset 0 1px 0 var(--glass-bg-medium)",
       }}
     >
       <div className="flex items-center gap-3">
         <div
           className="flex h-9 w-9 items-center justify-center rounded-full shrink-0"
           style={{
-            background: "rgba(244,88,122,0.08)",
-            border: "1px solid rgba(244,88,122,0.15)",
+            background: "rgba(0, 122, 255,0.08)",
+            border: "1px solid rgba(0, 122, 255,0.15)",
             backdropFilter: "blur(8px)",
           }}
         >
@@ -132,16 +132,16 @@ export default function SettingsScreen() {
                 onClick={() => setShowLangMenu(!showLangMenu)}
                 className="w-full flex items-center justify-between rounded-[20px] p-4 cursor-pointer transition-all active:scale-[0.99]"
                 style={{
-                  background: "rgba(255,255,255,0.30)",
+                  background: "var(--glass-bg-medium)",
                   backdropFilter: "blur(12px)",
                   WebkitBackdropFilter: "blur(12px)",
-                  border: "1px solid rgba(255,255,255,0.40)",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.35)",
+                  border: "1px solid var(--glass-bg-medium)",
+                  boxShadow: "inset 0 1px 0 var(--glass-bg-medium)",
                 }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full shrink-0" style={{ background: "rgba(244,88,122,0.08)", border: "1px solid rgba(244,88,122,0.15)" }}>
-                    <Languages size={17} style={{ color: "var(--pink-hot)" }} />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full shrink-0" style={{ background: "rgba(0, 122, 255,0.08)", border: "1px solid rgba(0, 122, 255,0.15)" }}>
+                    <Languages size={17} style={{ color: "var(--accent-main)" }} />
                   </div>
                   <div className="text-left">
                     <div className="text-[14px] font-extrabold text-gray-900">{t('settings.changeLanguage')}</div>
@@ -161,9 +161,9 @@ export default function SettingsScreen() {
                     exit={{ opacity: 0, y: -10 }}
                     className="absolute top-[105%] left-0 w-full z-50 rounded-[20px] overflow-hidden"
                     style={{
-                      background: "rgba(255,255,255,0.95)",
+                      background: "var(--glass-bg-elevated)",
                       backdropFilter: "blur(16px)",
-                      border: "1px solid rgba(244,88,122,0.2)",
+                      border: "1px solid rgba(0, 122, 255,0.2)",
                       boxShadow: "0 12px 40px rgba(0,0,0,0.12)"
                     }}
                   >
@@ -177,8 +177,8 @@ export default function SettingsScreen() {
                         onClick={() => { setLanguage(lang.code as LanguageCode); setShowLangMenu(false); }}
                         className="w-full text-left px-5 py-4 text-[14px] font-bold border-b border-gray-100 last:border-0 hover:bg-rose-50 transition-colors flex items-center justify-between"
                       >
-                        <span className={language === lang.code ? "text-[var(--pink-hot)]" : "text-gray-700"}>{lang.label}</span>
-                        {language === lang.code && <div className="h-2 w-2 rounded-full bg-[var(--pink-hot)]" />}
+                        <span className={language === lang.code ? "text-[var(--accent-main)]" : "text-gray-700"}>{lang.label}</span>
+                        {language === lang.code && <div className="h-2 w-2 rounded-full bg-[var(--accent-main)]" />}
                       </button>
                     ))}
                   </motion.div>
@@ -207,10 +207,10 @@ export default function SettingsScreen() {
             <div
               className="rounded-[20px] p-4"
               style={{
-                background: "rgba(255,255,255,0.30)",
+                background: "var(--glass-bg-medium)",
                 backdropFilter: "blur(12px)",
-                border: "1px solid rgba(255,255,255,0.40)",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.35)",
+                border: "1px solid var(--glass-bg-medium)",
+                boxShadow: "inset 0 1px 0 var(--glass-bg-medium)",
               }}
             >
               <div className="flex items-start gap-3">
@@ -234,8 +234,8 @@ export default function SettingsScreen() {
             <div
               className="mt-3 rounded-[18px] p-4"
               style={{
-                background: "rgba(244,88,122,0.05)",
-                border: "1px solid rgba(244,88,122,0.12)",
+                background: "rgba(0, 122, 255,0.05)",
+                border: "1px solid rgba(0, 122, 255,0.12)",
                 backdropFilter: "blur(8px)",
               }}
             >
@@ -252,10 +252,10 @@ export default function SettingsScreen() {
             <div
               className="rounded-[20px] px-4 py-3.5 flex items-center justify-between"
               style={{
-                background: "rgba(255,255,255,0.30)",
+                background: "var(--glass-bg-medium)",
                 backdropFilter: "blur(12px)",
-                border: "1px solid rgba(255,255,255,0.40)",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.35)",
+                border: "1px solid var(--glass-bg-medium)",
+                boxShadow: "inset 0 1px 0 var(--glass-bg-medium)",
               }}
             >
               <div>
@@ -279,7 +279,7 @@ export default function SettingsScreen() {
               WebkitBackdropFilter: "blur(16px)",
               border: "1px solid rgba(239,68,68,0.20)",
               color: "#DC2626",
-              boxShadow: "0 4px 16px rgba(239,68,68,0.08), inset 0 1px 0 rgba(255,255,255,0.30)",
+              boxShadow: "0 4px 16px rgba(239,68,68,0.08), inset 0 1px 0 var(--glass-bg-medium)",
             }}
             onClick={() => {
               localStorage.removeItem("hirkani_token");

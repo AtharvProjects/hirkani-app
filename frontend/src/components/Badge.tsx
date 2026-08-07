@@ -47,10 +47,10 @@ export function SafetyBadge({ classification }: { classification: SafetyClass })
         transition={{ delay: 0.15, duration: 0.45, type: "spring", stiffness: 300, damping: 20 }}
         className="flex h-14 w-14 items-center justify-center rounded-full mb-3"
         style={{
-          background: "rgba(255,255,255,0.45)",
+          background: "var(--glass-bg-medium)",
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
-          boxShadow: `0 4px 16px ${map.glowColor}, inset 0 1px 0 rgba(255,255,255,0.50)`,
+          boxShadow: `0 4px 16px ${map.glowColor}, inset 0 1px 0 var(--glass-bg-medium)`,
         }}
       >
         <Icon size={28} style={{ color: map.iconColor }} />

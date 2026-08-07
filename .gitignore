@@ -18,3 +18,7 @@ backend/.env
 *.apk
 dump.rdb
 frontend/out/
+
+# OS
+.DS_Store
+**/.DS_Store

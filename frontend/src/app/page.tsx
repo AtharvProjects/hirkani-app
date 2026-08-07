@@ -29,6 +29,10 @@ export default function LandingPage() {
     router.push("/home");
   };
 
+  const handleTryScan = () => {
+    router.push("/try");
+  };
+
   return (
     <div className="absolute inset-0 flex flex-col overflow-hidden z-50">
       {/* Aurora background */}
@@ -117,10 +121,10 @@ export default function LandingPage() {
           </button>
         </div>
 
-        {/* Full-width glass CTA button */}
+        {/* RECIPROCITY: Value-first CTA — try before signing up */}
         <button
-          onClick={handleAction}
-          className="w-full h-[56px] rounded-[28px] text-[15px] font-bold transition-transform active:scale-[0.97]"
+          onClick={handleTryScan}
+          className="w-full h-[56px] rounded-[28px] text-[15px] font-bold transition-transform active:scale-[0.97] flex items-center justify-center gap-2 mb-6"
           style={{
             background: "rgba(255,255,255,0.55)",
             backdropFilter: "blur(28px)",
@@ -130,8 +134,22 @@ export default function LandingPage() {
             boxShadow: "0 8px 32px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.60), inset 0 -1px 0 rgba(255,255,255,0.10), inset 0 0 14px 4px rgba(255,255,255,0.08)",
           }}
         >
-          About my body
+          ✨ Try a Free Scan First
         </button>
+
+        {/* Login link for returning users */}
+        <div className="text-center">
+          <p className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
+            Already have an account?{" "}
+            <button 
+              onClick={() => router.push("/home")} 
+              className="font-bold hover:underline" 
+              style={{ color: "var(--accent-main)" }}
+            >
+              Log in
+            </button>
+          </p>
+        </div>
       </motion.div>
     </div>
   );

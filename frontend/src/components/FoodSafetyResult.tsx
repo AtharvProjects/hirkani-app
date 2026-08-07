@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { X, Heart, Utensils, Dna, Bone, Brain, Activity, Leaf, Sparkles, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import { GlassCard } from "./GlassCard";
@@ -47,11 +48,17 @@ function getNutrientIcon(name: string) {
   if (n.includes("iron")) return <Brain size={22} style={{ color: "#EF4444" }} />;
   if (n.includes("protein")) return <Activity size={22} style={{ color: "#3B82F6" }} />;
   if (n.includes("fiber")) return <Leaf size={22} style={{ color: "#10B981" }} />;
-  return <Sparkles size={22} style={{ color: "var(--pink-hot)" }} />;
+  return <Sparkles size={22} style={{ color: "var(--accent-main)" }} />;
 }
 
 export function FoodSafetyResult({ result, onClose, onSaveFavorite, isSaved }: Props) {
   const { t } = useTranslation();
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    containerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
   
   const isSafe = result.classification === "SAFE";
   const isCaution = result.classification === "CONSUME_WITH_CAUTION";
@@ -92,6 +99,7 @@ export function FoodSafetyResult({ result, onClose, onSaveFavorite, isSaved }: P
 
   return (
     <motion.div
+      ref={containerRef}
       key="result"
       variants={staggerContainer}
       initial="hidden"
@@ -113,8 +121,8 @@ export function FoodSafetyResult({ result, onClose, onSaveFavorite, isSaved }: P
 
       {/* Combined Hero Safety Card */}
       <motion.div variants={staggerItem} className="relative w-full rounded-[28px] overflow-hidden shadow-sm" style={{
-        border: "1px solid rgba(255,255,255,0.40)",
-        backgroundColor: "rgba(255,255,255,0.6)",
+        border: "1px solid var(--glass-bg-medium)",
+        backgroundColor: "var(--glass-bg-elevated)",
       }}>
         {/* Top half image */}
         <div className="h-[120px] w-full bg-gray-200 relative">
@@ -136,9 +144,9 @@ export function FoodSafetyResult({ result, onClose, onSaveFavorite, isSaved }: P
           <div
             className="flex h-14 w-14 items-center justify-center rounded-full mb-2 z-10 shadow-md"
             style={{
-              background: "rgba(255,255,255,0.7)",
+              background: "var(--glass-bg-elevated)",
               backdropFilter: "blur(8px)",
-              border: `1px solid rgba(255,255,255,0.8)`
+              border: `1px solid var(--glass-bg-elevated)`
             }}
           >
             <StatusIcon size={30} style={{ color: map.themeColor }} />
@@ -264,7 +272,7 @@ export function FoodSafetyResult({ result, onClose, onSaveFavorite, isSaved }: P
           <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar -mx-1 px-1">
             {result.nutrient_insights.map((nutrient, idx) => (
               <div key={idx} className="flex items-center gap-3 shrink-0 p-3 rounded-[16px]" style={{
-                background: "rgba(255,255,255,0.7)",
+                background: "var(--glass-bg-elevated)",
                 border: "1px solid rgba(0,0,0,0.04)",
                 minWidth: "150px"
               }}>
@@ -292,7 +300,7 @@ export function FoodSafetyResult({ result, onClose, onSaveFavorite, isSaved }: P
               : "shadow-xl"
           }`}
           style={!isSaved ? {
-            background: "linear-gradient(135deg, var(--pink-hot) 0%, #FF8A9A 100%)",
+            background: "linear-gradient(135deg, var(--accent-main) 0%, #8E8E93 100%)",
             color: "white"
           } : {}}
         >
@@ -300,7 +308,7 @@ export function FoodSafetyResult({ result, onClose, onSaveFavorite, isSaved }: P
             "Saved to Favorites ✨"
           ) : (
             <>
-              <Heart size={20} className="mr-2" fill="rgba(255,255,255,0.9)" />
+              <Heart size={20} className="mr-2" fill="var(--glass-bg-elevated)" />
               Add to Favorites
             </>
           )}

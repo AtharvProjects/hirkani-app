@@ -14,10 +14,7 @@ const nextConfig: NextConfig = {
 
 const withPWA = withPWAInit({
   dest: "public",
-  cacheOnFrontEndNav: true,
-  aggressiveFrontEndNavCaching: true,
-  reloadOnOnline: true,
-  disable: process.env.NODE_ENV === "development",
+  disable: true,
   workboxOptions: {
     disableDevLogs: true,
   },

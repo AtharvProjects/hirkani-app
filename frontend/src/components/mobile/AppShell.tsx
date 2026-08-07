@@ -24,7 +24,7 @@ export function useKeyboardOpen() {
 
     const handleResize = () => {
       // If the window inner height is less than 80% of the screen height, the keyboard is likely open.
-      if (window.screen && window.innerHeight < window.screen.height * 0.80) {
+      if (window.screen && window.innerHeight < window.screen.height * 0.65) {
         setIsOpen(true);
       } else {
         setIsOpen(false);
@@ -99,11 +99,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             background: "rgba(255, 255, 255, 0.22)",
             backdropFilter: "blur(28px)",
             WebkitBackdropFilter: "blur(28px)",
-            border: "1px solid rgba(255, 255, 255, 0.40)",
+            border: "1px solid var(--glass-bg-medium)",
             boxShadow: `
               0 8px 32px rgba(0, 0, 0, 0.08),
               0 2px 8px rgba(0, 0, 0, 0.04),
-              inset 0 1px 0 rgba(255, 255, 255, 0.55),
+              inset 0 1px 0 var(--glass-bg-medium),
               inset 0 -1px 0 rgba(255, 255, 255, 0.10),
               inset 0 0 14px 4px rgba(255, 255, 255, 0.06)
             `,
@@ -114,7 +114,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             className="absolute top-0 left-0 right-0 h-[1px] pointer-events-none"
             style={{
               borderRadius: "32px 32px 0 0",
-              background: "linear-gradient(90deg, transparent 10%, rgba(255,255,255,0.7) 50%, transparent 90%)",
+              background: "linear-gradient(90deg, transparent 10%, var(--glass-bg-elevated) 50%, transparent 90%)",
             }}
           />
 
@@ -133,10 +133,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     className="absolute inset-0"
                     style={{
                       borderRadius: "26px",
-                      background: "linear-gradient(135deg, #F4587A 0%, #FF7961 100%)",
+                      background: "rgba(255, 255, 255, 0.35)",
+                      backdropFilter: "blur(16px)",
+                      WebkitBackdropFilter: "blur(16px)",
+                      border: "1px solid rgba(255, 255, 255, 0.5)",
                       boxShadow: `
-                        0 6px 20px rgba(244, 88, 122, 0.40),
-                        inset 0 1px 0 rgba(255,255,255,0.20)
+                        0 8px 24px rgba(0, 0, 0, 0.08),
+                        inset 0 1px 1px rgba(255, 255, 255, 0.8),
+                        inset 0 -1px 1px rgba(255, 255, 255, 0.2)
                       `,
                     }}
                     transition={{ type: "spring", stiffness: 500, damping: 38, mass: 0.7 }}
@@ -153,7 +157,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Icon
                     size={20}
                     className="transition-colors duration-200"
-                    style={{ color: active ? "#fff" : "var(--text-muted)" }}
+                    style={{ color: active ? "var(--text-primary)" : "var(--text-muted)" }}
                   />
                 </motion.div>
                 <motion.span
@@ -164,7 +168,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   transition={{ type: "spring", stiffness: 400, damping: 25 }}
                   className="relative z-10 text-[10px] leading-none transition-colors duration-200"
                   style={{
-                    color: active ? "#fff" : "var(--text-muted)",
+                    color: active ? "var(--text-primary)" : "var(--text-muted)",
                     fontWeight: active ? 800 : 600,
                   }}
                 >

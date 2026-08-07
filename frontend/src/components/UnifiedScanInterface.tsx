@@ -239,17 +239,17 @@ export function UnifiedScanInterface({
           
           <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center p-8 pb-32">
             <div className="relative w-full h-full max-w-[280px] max-h-[280px]">
-              <div className="absolute w-10 h-10 border-t-4 border-l-4 rounded-tl-[24px] top-0 left-0" style={{ borderColor: streamActive ? "var(--pink-hot)" : "rgba(244,88,122,0.3)" }} />
-              <div className="absolute w-10 h-10 border-t-4 border-r-4 rounded-tr-[24px] top-0 right-0" style={{ borderColor: streamActive ? "var(--pink-hot)" : "rgba(244,88,122,0.3)" }} />
-              <div className="absolute w-10 h-10 border-b-4 border-l-4 rounded-bl-[24px] bottom-0 left-0" style={{ borderColor: streamActive ? "var(--pink-hot)" : "rgba(244,88,122,0.3)" }} />
-              <div className="absolute w-10 h-10 border-b-4 border-r-4 rounded-br-[24px] bottom-0 right-0" style={{ borderColor: streamActive ? "var(--pink-hot)" : "rgba(244,88,122,0.3)" }} />
+              <div className="absolute w-10 h-10 border-t-4 border-l-4 rounded-tl-[24px] top-0 left-0" style={{ borderColor: streamActive ? "var(--accent-main)" : "rgba(0, 122, 255,0.3)" }} />
+              <div className="absolute w-10 h-10 border-t-4 border-r-4 rounded-tr-[24px] top-0 right-0" style={{ borderColor: streamActive ? "var(--accent-main)" : "rgba(0, 122, 255,0.3)" }} />
+              <div className="absolute w-10 h-10 border-b-4 border-l-4 rounded-bl-[24px] bottom-0 left-0" style={{ borderColor: streamActive ? "var(--accent-main)" : "rgba(0, 122, 255,0.3)" }} />
+              <div className="absolute w-10 h-10 border-b-4 border-r-4 rounded-br-[24px] bottom-0 right-0" style={{ borderColor: streamActive ? "var(--accent-main)" : "rgba(0, 122, 255,0.3)" }} />
               
               {streamActive && !isProcessing && (
                 <motion.div 
                   animate={{ y: [0, 240, 0] }}
                   transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
-                  className="absolute top-2 left-0 w-full h-[2px] shadow-[0_0_12px_3px_rgba(244,88,122,0.6)]"
-                  style={{ background: "var(--pink-hot)" }}
+                  className="absolute top-2 left-0 w-full h-[2px] shadow-[0_0_12px_3px_rgba(0, 122, 255,0.6)]"
+                  style={{ background: "var(--accent-main)" }}
                 />
               )}
             </div>
@@ -264,7 +264,7 @@ export function UnifiedScanInterface({
 
           {isProcessing && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/40 backdrop-blur-sm">
-              <Loader2 size={32} className="animate-spin mb-3" style={{ color: "var(--pink-hot)" }} />
+              <Loader2 size={32} className="animate-spin mb-3" style={{ color: "var(--accent-main)" }} />
               <p className="text-[14px] font-black" style={{ color: "var(--text-primary)" }}>Analyzing...</p>
             </div>
           )}
@@ -281,7 +281,7 @@ export function UnifiedScanInterface({
               style={{
                 background: "rgba(255,255,255,0.2)",
                 backdropFilter: "blur(12px)",
-                border: "1px solid rgba(255,255,255,0.4)"
+                border: "1px solid var(--glass-bg-medium)"
               }}
             >
               <ImageIcon size={22} className="text-white" />
@@ -293,11 +293,11 @@ export function UnifiedScanInterface({
                 disabled={isProcessing}
                 className="relative w-[76px] h-[76px] rounded-full flex items-center justify-center active:scale-[0.95] transition-transform disabled:opacity-50"
                 style={{
-                  background: "rgba(244,88,122,0.2)",
-                  border: "4px solid var(--pink-hot)"
+                  background: "rgba(0, 122, 255,0.2)",
+                  border: "4px solid var(--accent-main)"
                 }}
               >
-                <div className="w-[56px] h-[56px] bg-white rounded-full flex items-center justify-center shadow-lg" style={{ background: "linear-gradient(135deg, var(--pink-hot) 0%, #ff8f8f 100%)" }}>
+                <div className="w-[56px] h-[56px] bg-white rounded-full flex items-center justify-center shadow-lg" style={{ background: "linear-gradient(135deg, var(--accent-main) 0%, #8E8E93 100%)" }}>
                   <Camera size={24} className="text-white" />
                 </div>
               </button>
@@ -307,9 +307,9 @@ export function UnifiedScanInterface({
                 disabled={isProcessing}
                 className="relative w-[76px] h-[76px] rounded-full flex flex-col items-center justify-center active:scale-[0.95] transition-transform disabled:opacity-50"
                 style={{
-                  background: "linear-gradient(135deg, var(--pink-hot) 0%, #ff8f8f 100%)",
-                  boxShadow: "0 8px 24px rgba(244,88,122,0.4)",
-                  border: "2px solid rgba(255,255,255,0.3)"
+                  background: "linear-gradient(135deg, var(--accent-main) 0%, #8E8E93 100%)",
+                  boxShadow: "var(--glass-shadow-elevated)",
+                  border: "2px solid var(--glass-bg-medium)"
                 }}
               >
                 {isProcessing ? <Loader2 size={24} className="animate-spin text-white" /> : <ScanBarcode size={28} className="text-white mb-0.5" />}
@@ -339,7 +339,7 @@ export function UnifiedScanInterface({
               style={{
                 background: "rgba(255,255,255,0.2)",
                 backdropFilter: "blur(12px)",
-                border: "1px solid rgba(255,255,255,0.4)"
+                border: "1px solid var(--glass-bg-medium)"
               }}
             >
               <FileText size={22} className="text-white" />
