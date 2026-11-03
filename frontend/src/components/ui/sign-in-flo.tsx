@@ -132,10 +132,10 @@ export const Component: React.FC<{ initialIsSignUp?: boolean; onSuccess?: () => 
           >
           <div className="text-center mb-6">
             <h1 className="text-[26px] font-extrabold tracking-tight text-[#2E295E] mb-1">
-              {isSignUp ? 'Save Your Hirkani Profile' : 'Welcome Back!'}
+              {isSignUp ? 'Create Your Account' : 'Welcome Back!'}
             </h1>
             <p className="text-[14px] font-medium text-[#8F8CAE]">
-              {isSignUp ? 'Your personalized pregnancy guide is ready — just save it' : 'Login to continue'}
+              {isSignUp ? 'Sign up to personalize your pregnancy food safety' : 'Login to continue'}
             </p>
           </div>
 
@@ -214,7 +214,7 @@ export const Component: React.FC<{ initialIsSignUp?: boolean; onSuccess?: () => 
               }}
             >
               <span className={`transition-opacity duration-200 ${isSubmitting ? 'opacity-0' : 'opacity-100'}`}>
-                {isSignUp ? 'Save My Profile' : 'Login'}
+                {isSignUp ? 'Sign Up' : 'Login'}
               </span>
               
               {isSubmitting && (
@@ -253,7 +253,7 @@ export const Component: React.FC<{ initialIsSignUp?: boolean; onSuccess?: () => 
                 onClick={toggleMode}
                 className="font-bold text-[#9A81F8] hover:opacity-80 transition-opacity"
               >
-                {isSignUp ? 'Login' : 'Save My Profile'}
+                {isSignUp ? 'Login' : 'Sign Up'}
               </button>
             </p>
           </div>

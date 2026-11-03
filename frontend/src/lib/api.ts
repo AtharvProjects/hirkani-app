@@ -30,6 +30,59 @@ export interface ScanResult {
   scan_type?: string;
   ingredients?: any[];
   nutrients?: any;
+  // Enhanced Engine Fields (from FoodAnalysisResult integration)
+  analysis_id?: string;
+  overall_status?: 'generally_appropriate' | 'limit' | 'caution' | 'avoid' | 'insufficient_data' | 'not_suitable_for_profile';
+  allergen_detections?: Array<{
+    ingredientName: string;
+    matchedAllergen: string;
+    confidence: string;
+    severity: string;
+  }>;
+  benefits_details?: Array<{
+    benefitId: string;
+    category: string;
+    description: string;
+  }>;
+  concerns_details?: Array<{
+    concernId: string;
+    category: string;
+    severity: string;
+    description: string;
+    recommendation?: string;
+  }>;
+  personalized_insights?: Array<{
+    flagId: string;
+    type: string;
+    severity: string;
+    message: string;
+    action: string;
+  }>;
+  pregnancy_flags?: Array<{
+    flagId: string;
+    trimester?: number;
+    week?: number;
+    category: string;
+    message: string;
+    reasoning: string;
+  }>;
+  reasoning_chain?: {
+    summary: string;
+    scoreBreakdown: Record<string, string>;
+    decisionTree: Array<{
+      nodeId: string;
+      decision: string;
+      reasoning: string;
+    }>;
+  };
+  evidence_sources?: Array<{
+    sourceId: string;
+    sourceName: string;
+    sourceType: string;
+    url?: string;
+    evidenceLevel: string;
+  }>;
+  engine_version?: string;
 }
 
 export interface AutocompleteItem {
@@ -114,8 +167,86 @@ async function storeScan(data: any, scanType: string, payloadStr: string): Promi
     aiAllergies
   );
 
+  // Safety Classification Fail-Safe Arbitration:
+  // If EITHER the rules engine OR AI flagged alcohol, pan masala, or AVOID -> final is AVOID_DURING_PREGNANCY
+  const aiClass = String(data.classification || "").toUpperCase();
+  const isAiAvoid = aiClass === "AVOID_DURING_PREGNANCY" || aiClass === "AVOID" || Boolean(data.is_alcoholic) || Boolean(data.is_tobacco_or_pan_masala);
+  const isRulesAvoid = evalResult.final === "AVOID_DURING_PREGNANCY";
+
+  const isAiCaution = aiClass === "CONSUME_WITH_CAUTION" || aiClass === "CAUTION";
+  const isRulesCaution = evalResult.final === "CONSUME_WITH_CAUTION";
+
+  let finalClassification: SafetyClass = "SAFE";
+  if (isRulesAvoid || isAiAvoid) {
+    finalClassification = "AVOID_DURING_PREGNANCY";
+  } else if (isRulesCaution || isAiCaution) {
+    finalClassification = "CONSUME_WITH_CAUTION";
+  }
+
+  // If finalClassification became AVOID but rulesEngine originally thought SAFE or CAUTION:
+  if (finalClassification === "AVOID_DURING_PREGNANCY" && evalResult.final !== "AVOID_DURING_PREGNANCY") {
+    evalResult.final = "AVOID_DURING_PREGNANCY";
+    evalResult.safetyScore = 15;
+    evalResult.recommendation = "Do not consume during pregnancy";
+    evalResult.sources = ["WHO", "CDC", "FDA"];
+    if (data.is_alcoholic && !evalResult.ruleHits.some(r => r.key === "alcohol_beverage")) {
+      evalResult.ruleHits.push({ key: "alcohol_beverage", severity: "AVOID_DURING_PREGNANCY", message: "Alcohol is unsafe at any level during pregnancy." });
+    }
+    if (data.is_tobacco_or_pan_masala && !evalResult.ruleHits.some(r => r.key === "pan_masala_tobacco")) {
+      evalResult.ruleHits.push({ key: "pan_masala_tobacco", severity: "AVOID_DURING_PREGNANCY", message: "Pan masala and betel nut are toxic to fetal development." });
+    }
+    const { generateDetailedPregnancyReasons } = await import('./rulesEngine');
+    evalResult.whyReasons = generateDetailedPregnancyReasons(
+      data.detected_food,
+      data.ingredients || [],
+      data.nutrients || {},
+      "AVOID_DURING_PREGNANCY",
+      evalResult.ruleHits,
+      profile
+    );
+  } else if (finalClassification === "CONSUME_WITH_CAUTION" && evalResult.final === "SAFE") {
+    evalResult.final = "CONSUME_WITH_CAUTION";
+    evalResult.safetyScore = 65;
+    evalResult.recommendation = "Consume in moderation";
+    const { generateDetailedPregnancyReasons } = await import('./rulesEngine');
+    evalResult.whyReasons = generateDetailedPregnancyReasons(
+      data.detected_food,
+      data.ingredients || [],
+      data.nutrients || {},
+      "CONSUME_WITH_CAUTION",
+      evalResult.ruleHits,
+      profile
+    );
+  }
+
   const explanation = generateSimpleExplanation(evalResult.final, evalResult.ruleHits);
   const imageUrl = data.image_url || null;
+
+  // Combine reasons from rulesEngine and Gemini AI (if available)
+  const baseReasons = evalResult.whyReasons || [];
+  const aiReasons = (data.pregnancy_safety_reasons || []) as string[];
+  
+  const combinedReasons: string[] = [...baseReasons];
+  for (const ar of aiReasons) {
+    if (!ar) continue;
+    // Don't include AI reasons that contradict the final safety verdict
+    if (evalResult.final === "AVOID_DURING_PREGNANCY") {
+      if (/safe|wholesome|free from alcohol|pathogen-free|balanced nutritional/i.test(ar) && !/unsafe|not safe|avoid|harm/i.test(ar)) {
+        continue;
+      }
+    } else if (evalResult.final === "SAFE") {
+      if (/unsafe|avoid|toxic|danger|carcinogen|defect|miscarriage|fatal/i.test(ar)) {
+        continue;
+      }
+    }
+    if (!combinedReasons.some(br => br.toLowerCase().includes(ar.toLowerCase()) || ar.toLowerCase().includes(br.toLowerCase()))) {
+      combinedReasons.push(ar);
+    }
+  }
+
+  // Strictly strip any percentages from all reasons
+  const { stripPercentages } = await import('./rulesEngine');
+  const finalWhyReasons = combinedReasons.map(r => stripPercentages(r)).filter(Boolean);
 
   const dbRecordToInsert = {
     user_id: user?.id,
@@ -130,7 +261,7 @@ async function storeScan(data: any, scanType: string, payloadStr: string): Promi
     rule_hits: JSON.stringify(evalResult.ruleHits),
     alternatives: JSON.stringify(evalResult.alternatives),
     references: JSON.stringify(evalResult.references),
-    thumbnail_base64: imageUrl
+    thumbnail_base64: (typeof window !== 'undefined' && (window as any)._lastTinyThumb) ? (window as any)._lastTinyThumb : null
   };
 
   // Skip database insert if guest user
@@ -141,7 +272,13 @@ async function storeScan(data: any, scanType: string, payloadStr: string): Promi
       created_at: new Date().toISOString(),
       ingredients: data.ingredients,
       nutrients: data.nutrients,
-      why_reasons: evalResult.ruleHits.map(r => r.message)
+      why_reasons: finalWhyReasons,
+      safety_score: evalResult.safetyScore,
+      trimester_risk: evalResult.trimesterRisk,
+      ingredients_analysis: evalResult.ingredientsAnalysis,
+      recommendation: evalResult.recommendation,
+      sources: evalResult.sources,
+      nutrient_insights: evalResult.nutrientInsights
     } as any;
   }
 
@@ -161,7 +298,13 @@ async function storeScan(data: any, scanType: string, payloadStr: string): Promi
   } else if (inserted) {
     if (typeof window !== 'undefined') {
       const store = useAppStore.getState();
-      store.setScanHistory([inserted, ...store.scanHistory]);
+      const enrichedRecord = {
+        ...inserted,
+        why_reasons: JSON.stringify(finalWhyReasons),
+        nutrient_insights: JSON.stringify(evalResult.nutrientInsights),
+        ingredients_analysis: JSON.stringify(evalResult.ingredientsAnalysis)
+      };
+      store.setScanHistory([enrichedRecord, ...store.scanHistory]);
       
       if (imageUrl && inserted.id) {
         // Only store very small downscaled thumbnails in local storage (done in UI)
@@ -185,7 +328,7 @@ async function storeScan(data: any, scanType: string, payloadStr: string): Promi
     rule_hits: evalResult.ruleHits,
     alternatives: evalResult.alternatives,
     safety_score: evalResult.safetyScore,
-    why_reasons: evalResult.whyReasons,
+    why_reasons: finalWhyReasons,
     trimester_risk: evalResult.trimesterRisk,
     ingredients_analysis: evalResult.ingredientsAnalysis,
     recommendation: evalResult.recommendation,
@@ -472,13 +615,28 @@ export const api = {
     }
   },
 
-  uploadImage: async (file: File): Promise<ScanResult> => {
+  uploadImage: async (fileOrDataUrl: File | string, fileName: string = "food_photo.jpg"): Promise<ScanResult> => {
     try {
-      const base64 = await fileToBase64(file);
+      let base64 = "";
+      let mimeType = "image/jpeg";
+      if (typeof fileOrDataUrl === "string") {
+        base64 = fileOrDataUrl;
+        if (fileOrDataUrl.includes(",")) {
+          const commaIdx = fileOrDataUrl.indexOf(",");
+          const prefix = fileOrDataUrl.substring(0, commaIdx);
+          base64 = fileOrDataUrl.substring(commaIdx + 1);
+          const mimeMatch = prefix.match(/data:([^;]+)/);
+          if (mimeMatch) mimeType = mimeMatch[1];
+        }
+      } else {
+        base64 = await fileToBase64(fileOrDataUrl);
+        mimeType = fileOrDataUrl.type || "image/jpeg";
+        fileName = fileOrDataUrl.name || fileName;
+      }
       const lang = useAppStore.getState().language || 'en';
-      const data = await geminiVisionScan(base64, file.type, lang);
-      if (!data) throw new Error("Failed to process image with Vision AI");
-      return storeScan(data, "image", file.name);
+      const data = await geminiVisionScan(base64, mimeType, lang);
+      if (!data) throw new Error("Could not detect food in this image. Please try another angle.");
+      return storeScan(data, "image", fileName);
     } catch (error) {
       logger.error(error, "uploadImage");
       throw error;

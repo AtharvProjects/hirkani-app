@@ -196,108 +196,67 @@ function ScanContent() {
     }
   }
 
-  async function handleImageCaptured(file: File) {
+  async function handleImageCaptured(fileOrDataUrl: File | string, mode: "food" | "barcode" = "food") {
     setIsSearching(true);
     try {
-      const url = URL.createObjectURL(file);
-      
-      // Downscale image using canvas to maximize barcode detection rate
-      let decodedSrc = url;
-      try {
-        const img = new Image();
-        await new Promise((res, rej) => {
-          img.onload = res;
-          img.onerror = rej;
-          img.src = url;
+      let decodedSrc = "";
+      if (typeof fileOrDataUrl === "string") {
+        decodedSrc = fileOrDataUrl;
+      } else {
+        decodedSrc = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(fileOrDataUrl);
         });
-
-        const maxDim = 1024;
-        let width = img.width;
-        let height = img.height;
-        
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-          const canvas = document.createElement("canvas");
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, width, height);
-            decodedSrc = canvas.toDataURL("image/jpeg", 0.90);
-          }
-        }
-        
-        // Always generate a tiny thumbnail for the history list to prevent localStorage bloat (limit 5MB)
-        const thumbDim = 120;
-        let tw = img.width; let th = img.height;
-        if (tw > th) { th = Math.round((th * thumbDim) / tw); tw = thumbDim; }
-        else { tw = Math.round((tw * thumbDim) / th); th = thumbDim; }
-        const tCanvas = document.createElement("canvas");
-        tCanvas.width = tw; tCanvas.height = th;
-        tCanvas.getContext("2d")?.drawImage(img, 0, 0, tw, th);
-        const tinyThumb = tCanvas.toDataURL("image/jpeg", 0.50);
-        
-        // Store it globally for the next step to consume
-        (window as any)._lastTinyThumb = tinyThumb;
-      } catch (scaleErr) {
-        console.warn("Failed to downscale captured image, decoding original:", scaleErr);
       }
 
-      const { BrowserMultiFormatReader, DecodeHintType } = await import("@zxing/library");
-      const hints = new Map();
-      hints.set(DecodeHintType.TRY_HARDER, true);
+      // If user selected Barcode mode, attempt barcode decode first
+      if (mode === "barcode") {
+        try {
+          const { BrowserMultiFormatReader, DecodeHintType } = await import("@zxing/library");
+          const hints = new Map();
+          hints.set(DecodeHintType.TRY_HARDER, true);
 
-      const reader = new BrowserMultiFormatReader(hints);
-      try {
-        const decoded = await reader.decodeFromImageUrl(decodedSrc);
-        if (decoded && decoded.getText()) {
-          const res = await api.analyzeBarcode(decoded.getText().trim());
-          res.image_url = decodedSrc;
-          if (res.id && (window as any)._lastTinyThumb) {
-             useAppStore.getState().setScanThumbnail(res.id.toString(), (window as any)._lastTinyThumb);
+          const reader = new BrowserMultiFormatReader(hints);
+          const decoded = await reader.decodeFromImageUrl(decodedSrc);
+          if (decoded && decoded.getText()) {
+            const res = await api.analyzeBarcode(decoded.getText().trim(), decodedSrc);
+            res.image_url = decodedSrc;
+            setResult(res);
+            return;
           }
-          setResult(res);
-          return;
+        } catch {
+          // Barcode decode failed, fall through to Vision AI
         }
-      } catch {
-        // Barcode decode failed, proceed to AI vision
       }
 
-      // No barcode found in image — fallback to AI Vision Scan directly (using local Ollama)
+      // Analyze Food / Product Photo directly with Vision AI
       try {
-        const res = await api.uploadImage(file);
+        const res = await api.uploadImage(decodedSrc, "food_photo.jpg");
         res.image_url = decodedSrc;
-        if (res.id && (window as any)._lastTinyThumb) {
-           useAppStore.getState().setScanThumbnail(res.id.toString(), (window as any)._lastTinyThumb);
-        }
         setResult(res);
         return;
       } catch (aiErr: any) {
-        console.warn("AI scan failed, falling back to manual entry:", aiErr);
+        console.warn("AI food scan error:", aiErr);
         if (aiErr.message?.includes("NOT_FOOD") || String(aiErr).includes("NOT_FOOD")) {
           setScanError({
             title: "Not a Food Product",
-            message: "We couldn't detect any food or beverage in this image. Please make sure to scan a food item or nutrition label."
+            message: "We couldn't detect any food, meal, or beverage in this photo. Please photograph a food item, dish, or nutrition label."
           });
           return;
         }
+        throw aiErr;
       }
-
-      setScanError({
-        title: "Scan Unsuccessful",
-        message: "No barcode or food product recognized automatically. Please try taking a clearer photo."
-      });
       
     } catch (e: any) {
+      let friendlyMsg = e.message || "Could not analyze this food photo. Please try taking a clearer photo in good lighting.";
+      if (friendlyMsg.includes("429") || friendlyMsg.toLowerCase().includes("rate limit") || friendlyMsg.toLowerCase().includes("quota") || friendlyMsg.toLowerCase().includes("busy")) {
+        friendlyMsg = "The AI scanning service is momentarily busy. Please tap shutter to try again in a few moments.";
+      }
       setScanError({
-        title: "Scan Failed",
-        message: e.message || "An unexpected error occurred while scanning."
+        title: "Scan Unsuccessful",
+        message: friendlyMsg
       });
     } finally {
       setIsSearching(false);
@@ -417,8 +376,9 @@ function ScanContent() {
                       references: parsed(scan.references),
                     };
 
-                    // Re-calculate the extended fields if they are missing (e.g., loaded from old DB schema)
-                    if (!scanData.why_reasons || scanData.why_reasons.length === 0) {
+                    // Re-calculate the extended fields if they are missing or using legacy generic strings
+                    const hasLegacyReasons = scanData.why_reasons?.length <= 2 && (scanData.why_reasons[0] === "Contains safe ingredients" || scanData.why_reasons[0]?.includes("%"));
+                    if (!scanData.why_reasons || scanData.why_reasons.length === 0 || hasLegacyReasons) {
                       const { evaluatePregnancySafety } = await import('@/lib/rulesEngine');
                       const profile = useAppStore.getState().profile || {};
                       
@@ -440,6 +400,7 @@ function ScanContent() {
                         aiAllergies
                       );
                       
+                      scanData.classification = evalResult.final;
                       scanData.safety_score = evalResult.safetyScore;
                       scanData.why_reasons = evalResult.whyReasons;
                       scanData.trimester_risk = evalResult.trimesterRisk;

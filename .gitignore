@@ -13,11 +13,18 @@ frontend/.next/
 frontend/.env.local
 backend/.env
 
-# Logs
+# Logs & Builds
 *.log
 *.apk
+*.aab
 dump.rdb
 frontend/out/
+*.tsbuildinfo
+.gradle/
+**/.gradle/
+**/build/
+local.properties
+**/local.properties
 
 # OS
 .DS_Store

@@ -6,17 +6,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 import { useTranslation, LanguageCode } from "@/lib/i18n";
 
-// Goal Gradient: Step labels including phantom "Account Created" step
-const STEP_LABELS = ["Account Created", "Language", "Profile", "Diet", "Health"];
+// Step labels
+const STEP_LABELS = ["Language", "Profile", "Diet", "Health"];
 
-// Smart Default: Compute a due date ~20 weeks from today (mid-pregnancy)
-function getSmartDefaultDueDate(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 20 * 7); // 20 weeks from now
-  return d.toISOString().split('T')[0];
-}
-
-// Baby size data for instant gratification preview (IKEA Effect)
+// Baby size data for pregnancy milestone preview
 const BABY_SIZE_MAP: Record<number, string> = {
   4: "Poppy seed", 8: "Raspberry", 12: "Lime", 16: "Avocado",
   20: "Banana", 24: "Corn on the cob", 28: "Eggplant",
@@ -44,10 +37,7 @@ export function OnboardingProfile({
 }) {
   const [step, setStep] = useState(1);
   const totalSteps = 4;
-  // Goal Gradient: Visual total includes phantom "Account Created" step
-  const visualTotalSteps = 5;
-  // Progress includes +1 for the phantom step that's always complete
-  const progressPercent = Math.round(((step) / visualTotalSteps) * 100);
+  const progressPercent = Math.round((step / totalSteps) * 100);
   
   const { t, language } = useTranslation();
   const setLanguage = require('@/store/useAppStore').useAppStore((s: any) => s.setLanguage);
@@ -55,17 +45,15 @@ export function OnboardingProfile({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Smart Default: Pre-fill age to 28 (India median maternal age)
-  const [age, setAge] = useState(initialData?.age ? String(initialData.age) : "28");
+  const [age, setAge] = useState(initialData?.age ? String(initialData.age) : "");
   
   const { dueDate: initialDueDate, setDueDate } = require('@/store/useAppStore').useAppStore();
   const [dueDateStr, setDueDateStr] = useState(initialDueDate || "");
   const [week, setWeek] = useState(initialData?.pregnancy_week ? String(initialData.pregnancy_week) : "");
   const [diet, setDiet] = useState(initialData?.diet_preference || "Veg");
 
-  // Smart Default: Pre-select "None" so users scan-and-adjust
   const [allergies, setAllergies] = useState<string[]>(() => {
-    if (!initialData?.allergies) return ["None"];
+    if (!initialData?.allergies) return [];
     const predefined = ["None", "Dairy", "Nuts", "Gluten", "Seafood"];
     return initialData.allergies.filter((a: string) => predefined.includes(a));
   });
@@ -83,9 +71,8 @@ export function OnboardingProfile({
     return initialData.allergies.some((a: string) => !predefined.includes(a));
   });
 
-  // Smart Default: Pre-select "None" so users scan-and-adjust
   const [conditions, setConditions] = useState<string[]>(() => {
-    if (!initialData?.medical_conditions) return ["None"];
+    if (!initialData?.medical_conditions) return [];
     const predefined = ["None", "Gestational Diabetes", "Anemia", "Hypertension"];
     return initialData.medical_conditions.filter((c: string) => predefined.includes(c));
   });
@@ -236,15 +223,11 @@ export function OnboardingProfile({
           ) : null}
         </div>
         
-        {/* Goal Gradient: Progress bar with percentage + step labels */}
+        {/* Progress bar with percentage */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <div className="flex gap-1.5 items-center mt-1">
-            {/* Phantom step 0 (Account Created) — always filled */}
-            <div className="h-1.5 w-4 rounded-full transition-all duration-500" style={{
-              background: "var(--accent-main)"
-            }} />
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-1.5 w-4 rounded-full transition-all duration-500" style={{
+              <div key={i} className="h-1.5 w-6 rounded-full transition-all duration-500" style={{
                 background: step >= i ? "var(--accent-main)" : "rgba(0,0,0,0.08)"
               }} />
             ))}
@@ -258,19 +241,6 @@ export function OnboardingProfile({
       </div>
 
       <div className="flex-1 pt-4 flex flex-col">
-        {/* Goal Gradient: "Account Created" badge — shown on step 1 */}
-        {step === 1 && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.4 }}
-            className="flex items-center gap-2 mx-auto mb-3 px-4 py-2 rounded-full"
-            style={{ background: "rgba(16,185,129,0.10)", border: "1px solid rgba(16,185,129,0.20)" }}
-          >
-            <CheckCircle2 size={14} style={{ color: "#10B981" }} />
-            <span className="text-[11px] font-black text-emerald-700 uppercase tracking-wider">Account Created</span>
-          </motion.div>
-        )}
 
         <div className="mb-6 text-center">
           <motion.div

@@ -85,9 +85,6 @@ function MainHome() {
   const resetHabitsIfNeeded = useAppStore(state => state.resetHabitsIfNeeded);
   const [isSaved, setIsSaved] = useState(false);
   
-  const [hideAllergyWarning, setHideAllergyWarning] = useState(false);
-  const [hideStreakWarning, setHideStreakWarning] = useState(false);
-
   // States for pregnancy profile personalization & interactivity
   const [activeCategory, setActiveCategory] = useState("Veggies");
   const [recommendations, setRecommendations] = useState<RecommendationResponse[]>([]);
@@ -102,7 +99,6 @@ function MainHome() {
   const [recSearchQuery, setRecSearchQuery] = useState("");
 
   useEffect(() => {
-    // Optionally trigger a silent background refresh, but we rely on Zustand for instant UI
     api.history().catch(console.error);
     api.getProfile().catch(console.error);
     resetHabitsIfNeeded();
@@ -136,77 +132,27 @@ function MainHome() {
   }, [searchQuery, showSuggestions]);
 
   useEffect(() => {
-    const list = [];
-    if (profile) {
-      list.push({
+    // Initial hydration reminder
+    const initialList = [
+      {
         id: 1,
         title: t('home.hydrationTitle'),
         body: t('home.hydrationDesc'),
         type: "info" as const
-      });
-      if (profile.trimester === 1) {
-        list.push({
-          id: 2,
-          title: "👶 Folic Acid Focus (Trimester 1)",
-          body: "A daily intake of folic acid is essential to prevent neural tube defects. Focus on spinach, avocados, or your doctor-prescribed prenatal vitamins.",
-          type: "success" as const
-        });
-        list.push({
-          id: 3,
-          title: "🚫 Listeria Risk Alert",
-          body: "Avoid unpasteurized cheese and raw sprouts in your first trimester as they pose higher contamination risks.",
-          type: "warning" as const
-        });
-      } else if (profile.trimester === 2) {
-        list.push({
-          id: 2,
-          title: "🦴 Calcium Phase (Trimester 2)",
-          body: "Your baby's skeleton is developing rapidly. Boost calcium with pasteurized dairy, curd, or calcium-fortified snacks.",
-          type: "success" as const
-        });
-      } else if (profile.trimester === 3) {
-        list.push({
-          id: 2,
-          title: "💪 Iron Boost (Trimester 3)",
-          body: "Prepare for birth! Boost your iron intake with spinach and chia seeds to support higher blood volume and prevent anemia.",
-          type: "success" as const
-        });
       }
+    ];
+    setNotifications(initialList);
 
-      const conds = (profile.medical_conditions || []).map((c: string) => c.toLowerCase());
-      if (conds.includes("gestational diabetes") || conds.includes("diabetes")) {
-        list.push({
-          id: 4,
-          title: "🩸 Blood Sugar Monitoring",
-          body: "Keep glucose levels stable. Limit sugar to <15g per meal. Lean on fiber-rich veggies and sugar-free alternatives.",
-          type: "warning" as const
-        });
-      }
-      if (conds.includes("hypertension") || conds.includes("preeclampsia") || conds.includes("high blood pressure")) {
-        list.push({
-          id: 5,
-          title: "❤️ Low Sodium Guidelines",
-          body: "Gestational hypertension requires limiting sodium (<1,500mg daily). Avoid canned foods and added table salts.",
-          type: "warning" as const
-        });
-      }
-      if (conds.includes("anemia")) {
-        list.push({
-          id: 6,
-          title: "🩸 Iron Absorption Trick",
-          body: "Enhance absorption by pairing iron-rich foods (e.g. spinach) with vitamin C sources (e.g. fresh strawberries).",
-          type: "info" as const
-        });
-      }
-    } else {
-      list.push({
-        id: 1,
-        title: "🌸 Welcome to Hirkani",
-        body: "Fill out your pregnancy profile in the Settings tab to receive fully personalized food safety recommendations.",
-        type: "info" as const
-      });
-    }
-    setNotifications(list);
+    // Fetch live clinical pregnancy tips
+    api.tips().then((tipsData) => {
+      const liveTips = (tipsData?.tips || []).map((tip: string, idx: number) => ({
+        id: idx + 2,
+        title: idx === 0 ? "Daily Nutritional Insight" : "Prenatal Safety Tip",
+        body: tip,
+        type: "success" as const
+      }));
+      setNotifications([initialList[0], ...liveTips]);
+    }).catch(console.error);
 
     setIsRecommendationsLoading(true);
     api.getRecommendations(profile).then((res) => {
@@ -263,8 +209,8 @@ function MainHome() {
       <header className="flex items-center justify-between mt-2 mb-7">
         <div className="flex items-center gap-3 w-full">
           <div className="relative">
-            <div className="h-[42px] w-[42px] rounded-full overflow-hidden" style={{ background: "var(--glass-bg-medium)", border: "1px solid var(--glass-bg-medium)" }}>
-              <img src="https://api.dicebear.com/9.x/notionists/svg?seed=Felix&backgroundColor=f472b6,fbcfe8,fce7f3&eyes=variant04" alt="Avatar" className="h-full w-full object-cover" />
+            <div className="h-[42px] w-[42px] rounded-full overflow-hidden flex items-center justify-center font-black text-[16px] text-white" style={{ background: "linear-gradient(135deg, var(--accent-main), #C084FC)", border: "2px solid #fff", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
+              {(profile?.name || "M").charAt(0).toUpperCase()}
             </div>
             <div className="absolute -bottom-1 -right-1 h-[18px] w-[22px] rounded-full flex items-center justify-center text-[9px] font-black" style={{ background: "var(--accent-main)", color: "#fff", border: "2px solid #fff" }}>
               T{profile?.trimester || 1}
@@ -307,104 +253,6 @@ function MainHome() {
           </div>
         </div>
       )}
-
-      {/* ── LOSS AVERSION: Profile Incomplete Warning ── */}
-      {!hideAllergyWarning && profile && (
-        !profile.allergies || profile.allergies.length === 0 || 
-        (profile.allergies.length === 1 && profile.allergies[0] === "None")
-      ) && (
-        !profile.medical_conditions || profile.medical_conditions.length === 0 ||
-        (profile.medical_conditions.length === 1 && profile.medical_conditions[0] === "None")
-      ) && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-5 p-4 rounded-[22px] shadow-sm"
-          style={{
-            background: "rgba(245,158,11,0.06)",
-            border: "1px solid rgba(245,158,11,0.15)",
-          }}
-        >
-          <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[16px]" style={{ background: "rgba(245,158,11,0.12)" }}>
-              <AlertTriangle size={16} style={{ color: "#D97706" }} />
-            </div>
-            <div className="flex-1">
-              <div className="text-[13px] font-black" style={{ color: "var(--text-primary)" }}>
-                {t('home.allergiesWarningTitle')}
-              </div>
-              <div className="text-[11.5px] font-bold mt-0.5 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                {t('home.allergiesWarningDesc')}
-              </div>
-              <div className="flex items-center gap-2 mt-3">
-                <button
-                  onClick={() => { router.push('/profile?edit=true'); }}
-                  className="px-4 py-2 rounded-full text-[11px] font-black text-white"
-                  style={{ background: "linear-gradient(135deg, #D97706, #F59E0B)" }}
-                >
-                  {t('home.completeProfile')}
-                </button>
-                <button
-                  onClick={() => setHideAllergyWarning(true)}
-                  className="px-3 py-2 rounded-full text-[10px] font-bold"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  {t('home.illRiskIt')}
-                </button>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* ── LOSS AVERSION: Streak Expiry Warning ── */}
-      {!hideStreakWarning && streakCount > 0 && (() => {
-        const today = new Date().toISOString().split('T')[0];
-        const lastStreak = useAppStore.getState().lastStreakDate;
-        const isStreakAtRisk = lastStreak && lastStreak !== today;
-        if (!isStreakAtRisk) return null;
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-5 p-4 rounded-[22px] shadow-sm"
-            style={{
-              background: "rgba(239,68,68,0.04)",
-              border: "1px solid rgba(239,68,68,0.12)",
-            }}
-          >
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[16px]" style={{ background: "rgba(239,68,68,0.10)" }}>
-                🔥
-              </div>
-              <div className="flex-1">
-                <div className="text-[13px] font-black" style={{ color: "var(--text-primary)" }}>
-                  {t('home.streakWarningTitle')}
-                </div>
-                <div className="text-[11.5px] font-bold mt-0.5 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                  {t('home.streakWarningDesc')}
-                </div>
-                <div className="flex items-center gap-2 mt-3">
-                  <button
-                    onClick={() => { router.push('/scan'); }}
-                    className="px-4 py-2 rounded-full text-[11px] font-black text-white flex items-center gap-1.5"
-                    style={{ background: "linear-gradient(135deg, var(--accent-main), #FF5E4D)" }}
-                  >
-                    <ScanLine size={12} /> {t('home.scanNow')}
-                  </button>
-                  <button
-                    onClick={() => setHideStreakWarning(true)}
-                    className="px-3 py-2 rounded-full text-[10px] font-bold"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    {t('home.letStreakReset')}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        );
-      })()}
 
       <h1 className="mb-5 text-[34px] font-black leading-[1.1] tracking-tight font-display" style={{ color: "var(--text-primary)", whiteSpace: 'pre-line' }}>
         {t('home.checkCravings')}
@@ -940,10 +788,6 @@ export default function HomeScreen() {
   const isAuthed = useAppStore((state) => state.isAuthed);
   const profile = useAppStore((state) => state.profile);
   
-  // IKEA Effect: Track local onboarding completion (before auth)
-  // Users personalize first → then save with signup
-  const [localOnboardingDone, setLocalOnboardingDone] = useState(false);
-  
   // Wait for client mount to avoid hydration mismatch with Zustand persist
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -957,13 +801,6 @@ export default function HomeScreen() {
 
   if (!mounted) return <div className="min-h-screen w-full" />;
 
-  // IKEA Effect: Personalize FIRST, signup LAST
-  // If not authed and hasn't done local onboarding → show onboarding (build ownership)
-  // If not authed but HAS done local onboarding → show AuthGate (save what they built)
-  // If authed but no server profile → show onboarding (returning user edge case)
-  if (!isAuthed && !localOnboardingDone && !profile) {
-    return <OnboardingProfile onDone={() => setLocalOnboardingDone(true)} />;
-  }
   if (!isAuthed) return <AuthGate onDone={() => useAppStore.getState().setAuthed(true)} />;
   if (!profile) return <OnboardingProfile onDone={() => api.getProfile().catch(console.error)} />;
   

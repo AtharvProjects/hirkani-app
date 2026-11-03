@@ -2,14 +2,13 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Image as ImageIcon, ScanBarcode, FileText, ChevronRight, Loader2 } from "lucide-react";
+import { Camera, Image as ImageIcon, ScanBarcode, Search, Loader2 } from "lucide-react";
 import { api, ScanResult } from "@/lib/api";
 import { Camera as CapCamera, CameraResultType, CameraSource } from "@capacitor/camera";
-// Dynamically imported to prevent bundle bloat: import { BrowserMultiFormatReader, DecodeHintType } from "@zxing/library";
 
 interface UnifiedScanInterfaceProps {
   onBarcodeDetected: (code: string, frameData?: string) => void;
-  onImageCaptured: (file: File) => void;
+  onImageCaptured: (fileOrDataUrl: File | string, mode?: "food" | "barcode") => void;
   onResult: (result: ScanResult) => void;
   paused?: boolean;
 }
@@ -20,13 +19,14 @@ export function UnifiedScanInterface({
   onResult,
   paused = false,
 }: UnifiedScanInterfaceProps) {
+  const [scanMode, setScanMode] = useState<"food" | "barcode">("food");
   const [isProcessing, setIsProcessing] = useState(false);
   const [streamActive, setStreamActive] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const readerRef = useRef<any>(null); // Type any for dynamically loaded BrowserMultiFormatReader
+  const readerRef = useRef<any>(null);
 
   useEffect(() => {
     let active = true;
@@ -57,7 +57,8 @@ export function UnifiedScanInterface({
 
           const scanLoop = async () => {
             if (!active || !videoRef.current) return;
-            if (videoRef.current.videoWidth > 0) {
+            // Only perform continuous barcode detection when in barcode mode
+            if (scanMode === "barcode" && videoRef.current.videoWidth > 0) {
               try {
                 // @ts-ignore
                 if ('BarcodeDetector' in window) {
@@ -76,7 +77,7 @@ export function UnifiedScanInterface({
                       const ctx = canvas.getContext("2d");
                       if (ctx) {
                         ctx.drawImage(videoRef.current, 0, 0);
-                        frameData = canvas.toDataURL("image/jpeg", 0.8);
+                        frameData = canvas.toDataURL("image/jpeg", 0.85);
                       }
                     } catch (e) {
                       console.warn("Failed to capture barcode frame", e);
@@ -90,24 +91,23 @@ export function UnifiedScanInterface({
                   if (res && active) {
                     active = false;
                     try { navigator.vibrate && navigator.vibrate(50); } catch (e) {}
-                  
-                  // Capture the exact frame where the barcode was found for AI Vision fallback
-                  let frameData = "";
-                  try {
-                    const canvas = document.createElement("canvas");
-                    canvas.width = videoRef.current.videoWidth;
-                    canvas.height = videoRef.current.videoHeight;
-                    const ctx = canvas.getContext("2d");
-                    if (ctx) {
-                      ctx.drawImage(videoRef.current, 0, 0);
-                      frameData = canvas.toDataURL("image/jpeg", 0.8);
+                    
+                    let frameData = "";
+                    try {
+                      const canvas = document.createElement("canvas");
+                      canvas.width = videoRef.current.videoWidth;
+                      canvas.height = videoRef.current.videoHeight;
+                      const ctx = canvas.getContext("2d");
+                      if (ctx) {
+                        ctx.drawImage(videoRef.current, 0, 0);
+                        frameData = canvas.toDataURL("image/jpeg", 0.85);
+                      }
+                    } catch (e) {
+                      console.warn("Failed to capture barcode frame", e);
                     }
-                  } catch (e) {
-                    console.warn("Failed to capture barcode frame", e);
-                  }
-                  
-                  onBarcodeDetected(res.getText(), frameData);
-                  return;
+                    
+                    onBarcodeDetected(res.getText(), frameData);
+                    return;
                   }
                 }
               } catch (err) {
@@ -125,12 +125,12 @@ export function UnifiedScanInterface({
         setStreamActive(false);
       }
     }
+
     if (paused) {
       setStreamActive(false);
       return;
     }
 
-    // Delay camera start slightly to allow the page transition to complete buttery smooth
     const timeoutId = setTimeout(() => {
       startCamera();
     }, 450);
@@ -148,33 +148,42 @@ export function UnifiedScanInterface({
         videoRef.current.srcObject = null;
       }
     };
-  }, [onBarcodeDetected, paused]);
+  }, [onBarcodeDetected, paused, scanMode]);
 
+  // Capture current live video frame
   const captureFrame = () => {
     if (!videoRef.current) return;
     setIsProcessing(true);
-    const canvas = document.createElement("canvas");
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.drawImage(videoRef.current, 0, 0);
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const file = new File([blob], "live_capture.jpg", { type: "image/jpeg" });
-          setIsProcessing(false);
-          onImageCaptured(file);
+    try {
+      const maxDim = 1024;
+      let width = videoRef.current.videoWidth || 1280;
+      let height = videoRef.current.videoHeight || 720;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
         }
-      }, "image/jpeg", 0.9);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        setIsProcessing(false);
+        onImageCaptured(dataUrl, scanMode);
+      }
+    } catch (e) {
+      console.error("Frame capture error:", e);
+      setIsProcessing(false);
     }
   };
 
-  const handleCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      onImageCaptured(e.target.files[0]);
-    }
-  };
-
+  // Handle native Capacitor camera (for devices without live WebRTC stream)
   const handleCapacitorCamera = async () => {
     try {
       let perms = await CapCamera.checkPermissions();
@@ -182,27 +191,66 @@ export function UnifiedScanInterface({
         perms = await CapCamera.requestPermissions();
       }
       if (perms.camera !== 'granted') {
-        alert("Camera access is needed to scan food items.");
+        alert("Camera permission is needed to photograph food.");
         return;
       }
+      setIsProcessing(true);
       const photo = await CapCamera.getPhoto({
-        quality: 90,
+        quality: 85,
+        width: 1024,
+        height: 1024,
         allowEditing: false,
-        resultType: CameraResultType.Uri,
+        resultType: CameraResultType.DataUrl,
         source: CameraSource.Camera
       });
-      if (photo.webPath) {
-        setIsProcessing(true);
-        const response = await fetch(photo.webPath);
-        const blob = await response.blob();
-        const file = new File([blob], "camera_capture.jpg", { type: "image/jpeg" });
-        setIsProcessing(false);
-        onImageCaptured(file);
+      setIsProcessing(false);
+      if (photo.dataUrl) {
+        onImageCaptured(photo.dataUrl, scanMode);
       }
     } catch (e: any) {
       setIsProcessing(false);
       if (e.message && (e.message.includes('cancelled') || e.message.includes('User cancelled'))) return;
       alert("Camera error: " + (e.message || "Unknown error"));
+    }
+  };
+
+  // Open native photo gallery to select a food/product photo
+  const handleGalleryPicker = async () => {
+    try {
+      if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) {
+        setIsProcessing(true);
+        const photo = await CapCamera.getPhoto({
+          quality: 85,
+          width: 1024,
+          height: 1024,
+          allowEditing: false,
+          resultType: CameraResultType.DataUrl,
+          source: CameraSource.Photos
+        });
+        setIsProcessing(false);
+        if (photo.dataUrl) {
+          onImageCaptured(photo.dataUrl, "food");
+          return;
+        }
+      }
+      galleryInputRef.current?.click();
+    } catch (e: any) {
+      setIsProcessing(false);
+      if (e.message && (e.message.includes('cancelled') || e.message.includes('User cancelled'))) return;
+      console.warn("Gallery error:", e);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (reader.result) {
+          onImageCaptured(reader.result as string, "food");
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -213,22 +261,57 @@ export function UnifiedScanInterface({
         accept="image/*"
         className="hidden"
         ref={fileInputRef}
-        onChange={handleCameraCapture}
+        onChange={handleFileInputChange}
       />
       <input
         type="file"
         accept="image/*"
         className="hidden"
         ref={galleryInputRef}
-        onChange={handleCameraCapture}
+        onChange={handleFileInputChange}
       />
 
-      <div className="flex flex-col items-center text-center mt-2 relative w-full">
-        <h3 className="text-[18px] font-black font-display tracking-tight mb-1" style={{ color: "var(--text-primary)" }}>Smart Scanner</h3>
-        <p className="text-[13px] font-medium px-4 mb-4 leading-relaxed" style={{ color: "var(--text-muted)" }}>
-          {streamActive ? "Auto-detecting... or tap the button to snap a photo." : "Tap Open Scanner to use the native camera."}
+      <div className="flex flex-col items-center text-center mt-1 relative w-full">
+        {/* Mode Selector Segmented Control */}
+        <div 
+          className="flex items-center gap-1 p-1 rounded-full mb-3 shadow-sm"
+          style={{ 
+            background: "var(--glass-bg-elevated)", 
+            border: "1px solid rgba(0,0,0,0.06)",
+            backdropFilter: "blur(12px)"
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setScanMode("food")}
+            className={`px-4 py-2 rounded-full text-[13px] font-black transition-all flex items-center gap-1.5 ${
+              scanMode === "food"
+                ? "bg-[var(--accent-main)] text-white shadow-md"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            <Camera size={15} /> Food & Product Photo
+          </button>
+          <button
+            type="button"
+            onClick={() => setScanMode("barcode")}
+            className={`px-4 py-2 rounded-full text-[13px] font-black transition-all flex items-center gap-1.5 ${
+              scanMode === "barcode"
+                ? "bg-[var(--accent-main)] text-white shadow-md"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            <ScanBarcode size={15} /> Barcode
+          </button>
+        </div>
+
+        <p className="text-[12px] font-semibold px-4 mb-3 leading-snug" style={{ color: "var(--text-secondary)" }}>
+          {scanMode === "food"
+            ? "Point camera at any food, cooked meal, fruit, or packaging and tap Shutter"
+            : "Point camera at product barcode for instant identification"}
         </p>
 
+        {/* Viewfinder Area */}
         <div className="relative w-full aspect-[4/5] max-h-[55vh] flex items-center justify-center rounded-[32px] overflow-hidden bg-black/5" style={{ boxShadow: "inset 0 4px 20px rgba(0,0,0,0.05)" }}>
           
           <video 
@@ -237,18 +320,20 @@ export function UnifiedScanInterface({
             autoPlay muted playsInline 
           />
           
+          {/* Framing Guides */}
           <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center p-8 pb-32">
-            <div className="relative w-full h-full max-w-[280px] max-h-[280px]">
-              <div className="absolute w-10 h-10 border-t-4 border-l-4 rounded-tl-[24px] top-0 left-0" style={{ borderColor: streamActive ? "var(--accent-main)" : "rgba(0, 122, 255,0.3)" }} />
-              <div className="absolute w-10 h-10 border-t-4 border-r-4 rounded-tr-[24px] top-0 right-0" style={{ borderColor: streamActive ? "var(--accent-main)" : "rgba(0, 122, 255,0.3)" }} />
-              <div className="absolute w-10 h-10 border-b-4 border-l-4 rounded-bl-[24px] bottom-0 left-0" style={{ borderColor: streamActive ? "var(--accent-main)" : "rgba(0, 122, 255,0.3)" }} />
-              <div className="absolute w-10 h-10 border-b-4 border-r-4 rounded-br-[24px] bottom-0 right-0" style={{ borderColor: streamActive ? "var(--accent-main)" : "rgba(0, 122, 255,0.3)" }} />
+            <div className={`relative w-full h-full ${scanMode === "barcode" ? "max-w-[280px] max-h-[200px]" : "max-w-[300px] max-h-[300px]"}`}>
+              <div className="absolute w-10 h-10 border-t-4 border-l-4 rounded-tl-[24px] top-0 left-0" style={{ borderColor: "var(--accent-main)" }} />
+              <div className="absolute w-10 h-10 border-t-4 border-r-4 rounded-tr-[24px] top-0 right-0" style={{ borderColor: "var(--accent-main)" }} />
+              <div className="absolute w-10 h-10 border-b-4 border-l-4 rounded-bl-[24px] bottom-0 left-0" style={{ borderColor: "var(--accent-main)" }} />
+              <div className="absolute w-10 h-10 border-b-4 border-r-4 rounded-br-[24px] bottom-0 right-0" style={{ borderColor: "var(--accent-main)" }} />
               
-              {streamActive && !isProcessing && (
+              {/* Animated laser line in barcode mode */}
+              {scanMode === "barcode" && streamActive && !isProcessing && (
                 <motion.div 
-                  animate={{ y: [0, 240, 0] }}
-                  transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
-                  className="absolute top-2 left-0 w-full h-[2px] shadow-[0_0_12px_3px_rgba(0, 122, 255,0.6)]"
+                  animate={{ y: [0, 180, 0] }}
+                  transition={{ repeat: Infinity, duration: 2.5, ease: "linear" }}
+                  className="absolute top-2 left-0 w-full h-[2px] shadow-[0_0_12px_3px_rgba(0,122,255,0.6)]"
                   style={{ background: "var(--accent-main)" }}
                 />
               )}
@@ -257,68 +342,87 @@ export function UnifiedScanInterface({
 
           {!streamActive && (
             <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-0">
-              <Camera size={32} style={{ color: "var(--text-muted)", opacity: 0.5, marginBottom: "12px" }} />
-              <p className="text-[13px] font-bold" style={{ color: "var(--text-muted)" }}>Camera starting...</p>
+              <Camera size={36} style={{ color: "var(--text-muted)", opacity: 0.5, marginBottom: "12px" }} />
+              <p className="text-[13px] font-bold" style={{ color: "var(--text-muted)" }}>Tap Shutter to open camera</p>
             </div>
           )}
 
           {isProcessing && (
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/40 backdrop-blur-sm">
-              <Loader2 size={32} className="animate-spin mb-3" style={{ color: "var(--accent-main)" }} />
-              <p className="text-[14px] font-black" style={{ color: "var(--text-primary)" }}>Analyzing...</p>
+            <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-white/60 backdrop-blur-sm">
+              <Loader2 size={36} className="animate-spin mb-3 text-[var(--accent-main)]" />
+              <p className="text-[14px] font-black text-gray-800">
+                {scanMode === "food" ? "Analyzing Food Photo with AI..." : "Decoding Barcode..."}
+              </p>
             </div>
           )}
 
-          {/* Gradient overlay at bottom for button visibility */}
-          <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black/70 to-transparent pointer-events-none z-10" />
+          {/* Bottom gradient overlay for shutter controls */}
+          <div className="absolute bottom-0 left-0 right-0 h-36 bg-gradient-to-t from-black/75 to-transparent pointer-events-none z-10" />
 
-          {/* Floating Buttons */}
+          {/* Controls Bar */}
           <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-6 z-20 px-6">
             
+            {/* Gallery Upload Button */}
             <button
-              onClick={() => galleryInputRef.current?.click()}
-              className="w-14 h-14 rounded-full flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform"
+              type="button"
+              onClick={handleGalleryPicker}
+              title="Upload Food Photo from Gallery"
+              className="w-13 h-13 rounded-full flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform"
               style={{
-                background: "rgba(255,255,255,0.2)",
+                width: "52px",
+                height: "52px",
+                background: "rgba(255,255,255,0.25)",
                 backdropFilter: "blur(12px)",
-                border: "1px solid var(--glass-bg-medium)"
+                border: "1.5px solid rgba(255,255,255,0.4)"
               }}
             >
               <ImageIcon size={22} className="text-white" />
             </button>
 
+            {/* Main Shutter Button */}
             {streamActive ? (
               <button
+                type="button"
                 onClick={captureFrame}
                 disabled={isProcessing}
                 className="relative w-[76px] h-[76px] rounded-full flex items-center justify-center active:scale-[0.95] transition-transform disabled:opacity-50"
                 style={{
-                  background: "rgba(0, 122, 255,0.2)",
+                  background: "rgba(255, 255, 255, 0.3)",
                   border: "4px solid var(--accent-main)"
                 }}
               >
-                <div className="w-[56px] h-[56px] bg-white rounded-full flex items-center justify-center shadow-lg" style={{ background: "linear-gradient(135deg, var(--accent-main) 0%, #8E8E93 100%)" }}>
-                  <Camera size={24} className="text-white" />
+                <div 
+                  className="w-[58px] h-[58px] rounded-full flex items-center justify-center shadow-lg"
+                  style={{ background: "linear-gradient(135deg, var(--accent-main) 0%, #FF8E9C 100%)" }}
+                >
+                  <Camera size={26} className="text-white" />
                 </div>
               </button>
             ) : (
               <button
+                type="button"
                 onClick={handleCapacitorCamera}
                 disabled={isProcessing}
                 className="relative w-[76px] h-[76px] rounded-full flex flex-col items-center justify-center active:scale-[0.95] transition-transform disabled:opacity-50"
                 style={{
-                  background: "linear-gradient(135deg, var(--accent-main) 0%, #8E8E93 100%)",
-                  boxShadow: "var(--glass-shadow-elevated)",
-                  border: "2px solid var(--glass-bg-medium)"
+                  background: "linear-gradient(135deg, var(--accent-main) 0%, #FF8E9C 100%)",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+                  border: "3px solid white"
                 }}
               >
-                {isProcessing ? <Loader2 size={24} className="animate-spin text-white" /> : <ScanBarcode size={28} className="text-white mb-0.5" />}
+                {isProcessing ? (
+                  <Loader2 size={26} className="animate-spin text-white" />
+                ) : (
+                  <Camera size={28} className="text-white mb-0.5" />
+                )}
               </button>
             )}
 
+            {/* Manual Text Search Button */}
             <button
+              type="button"
               onClick={() => {
-                const input = prompt("Enter barcode or food name to search manually:");
+                const input = prompt("Enter food name or barcode:");
                 if (input && input.trim()) {
                   setIsProcessing(true);
                   const isBarcode = /^\d+$/.test(input.trim()) && (input.trim().length >= 8 && input.trim().length <= 18);
@@ -335,19 +439,21 @@ export function UnifiedScanInterface({
                   }
                 }
               }}
-              className="w-14 h-14 rounded-full flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform"
+              title="Search Food by Name"
+              className="w-13 h-13 rounded-full flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform"
               style={{
-                background: "rgba(255,255,255,0.2)",
+                width: "52px",
+                height: "52px",
+                background: "rgba(255,255,255,0.25)",
                 backdropFilter: "blur(12px)",
-                border: "1px solid var(--glass-bg-medium)"
+                border: "1.5px solid rgba(255,255,255,0.4)"
               }}
             >
-              <FileText size={22} className="text-white" />
+              <Search size={22} className="text-white" />
             </button>
           </div>
         </div>
       </div>
-
     </div>
   );
 }

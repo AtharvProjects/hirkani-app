@@ -10,6 +10,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { PageTransition } from "@/components/mobile/PageTransition";
 import { ScreenHeader } from "@/components/mobile/ScreenHeader";
 import { useAppStore } from "@/store/useAppStore";
+import { supabase } from "@/lib/supabase";
 
 const staggerContainer = {
   hidden: {},
@@ -281,7 +282,12 @@ export default function SettingsScreen() {
               color: "#DC2626",
               boxShadow: "0 4px 16px rgba(239,68,68,0.08), inset 0 1px 0 var(--glass-bg-medium)",
             }}
-            onClick={() => {
+            onClick={async () => {
+              try {
+                await supabase.auth.signOut();
+              } catch (e) {
+                console.error("Signout error:", e);
+              }
               localStorage.removeItem("hirkani_token");
               useAppStore.getState().clearState();
               router.push("/home");

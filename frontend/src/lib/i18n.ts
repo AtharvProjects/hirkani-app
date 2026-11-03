@@ -56,6 +56,12 @@ export const translations: Translations = {
     "scan.cautionSub": "Enjoy in moderation — ask your doctor 💛",
     "scan.avoidLabel": "NOT RECOMMENDED",
     "scan.avoidSub": "Not recommended for expecting mothers 🚫",
+    "scan.whySafeTitle": "Why It Is Safe to Consume",
+    "scan.whySafeSub": "Nutritional benefits & pregnancy safety reasons",
+    "scan.whyCautionTitle": "Why to Consume with Caution",
+    "scan.whyCautionSub": "Ingredients & nutritional factors requiring moderation",
+    "scan.whyAvoidTitle": "Why Not to Eat During Pregnancy",
+    "scan.whyAvoidSub": "Critical ingredients & health risks for mother and baby",
     
     // Onboarding
     "onboarding.chooseLanguage": "Choose your preferred language",
@@ -134,6 +140,12 @@ export const translations: Translations = {
     "scan.cautionSub": "प्रमाणात आनंद घ्या — तुमच्या डॉक्टरांना विचारा 💛",
     "scan.avoidLabel": "शिफारस केलेली नाही",
     "scan.avoidSub": "गरोदर मातांसाठी शिफारस केलेली नाही 🚫",
+    "scan.whySafeTitle": "खाण्यास सुरक्षित असण्याची कारणे",
+    "scan.whySafeSub": "पौष्टिक फायदे आणि सुरक्षिततेची कारणे",
+    "scan.whyCautionTitle": "सावधगिरीने खाण्याची कारणे",
+    "scan.whyCautionSub": "प्रमाणात खाण्यासाठी घटक आणि पौष्टिक कारणे",
+    "scan.whyAvoidTitle": "गरोदरपणात न खाण्याची कारणे",
+    "scan.whyAvoidSub": "माता आणि बाळासाठी धोकादायक घटक आणि जोखीम",
     
     "onboarding.chooseLanguage": "तुमची पसंतीची भाषा निवडा",
     "onboarding.next": "पुढे जा",
@@ -210,6 +222,12 @@ export const translations: Translations = {
     "scan.cautionSub": "संयम से आनंद लें — अपने डॉक्टर से पूछें 💛",
     "scan.avoidLabel": "अनुशंसित नहीं",
     "scan.avoidSub": "गर्भवती माताओं के लिए अनुशंसित नहीं है 🚫",
+    "scan.whySafeTitle": "खाने के लिए सुरक्षित होने के कारण",
+    "scan.whySafeSub": "पोषण संबंधी लाभ और सुरक्षा कारण",
+    "scan.whyCautionTitle": "सावधानी से खाने के कारण",
+    "scan.whyCautionSub": "संयम में खाने के लिए सामग्री और पोषण संबंधी कारण",
+    "scan.whyAvoidTitle": "गर्भावस्था में न खाने के कारण",
+    "scan.whyAvoidSub": "माता और बच्चे के लिए जोखिम भरे घटक और स्वास्थ्य खतरे",
     
     "onboarding.chooseLanguage": "अपनी पसंदीदा भाषा चुनें",
     "onboarding.next": "आगे बढ़ें",

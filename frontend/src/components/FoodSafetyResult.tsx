@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { X, Heart, Utensils, Dna, Bone, Brain, Activity, Leaf, Sparkles, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { X, Heart, Utensils, CheckCircle2, AlertTriangle, XCircle, Shield, ShieldCheck, ShieldAlert, Info, Target } from "lucide-react";
 import { GlassCard } from "./GlassCard";
 import { useTranslation } from "@/lib/i18n";
 import type { ScanResult, SafetyClass } from "@/lib/api";
@@ -41,14 +41,20 @@ function getIngredientEmoji(name: string) {
   return '🌱';
 }
 
-function getNutrientIcon(name: string) {
-  const n = name.toLowerCase();
-  if (n.includes("folate") || n.includes("folic")) return <Dna size={22} style={{ color: "#7C3AED" }} />;
-  if (n.includes("calcium")) return <Bone size={22} style={{ color: "#9CA3AF" }} />;
-  if (n.includes("iron")) return <Brain size={22} style={{ color: "#EF4444" }} />;
-  if (n.includes("protein")) return <Activity size={22} style={{ color: "#3B82F6" }} />;
-  if (n.includes("fiber")) return <Leaf size={22} style={{ color: "#10B981" }} />;
-  return <Sparkles size={22} style={{ color: "var(--accent-main)" }} />;
+function formatReason(reason: string) {
+  // Strictly strip any accidental percentage
+  const clean = reason
+    .replace(/\b100%\s*/gi, "fully ")
+    .replace(/\b\d+%\s*/gi, "")
+    .replace(/%/g, "")
+    .trim();
+  const colonIndex = clean.indexOf(":");
+  if (colonIndex > 0 && colonIndex < 45) {
+    const title = clean.substring(0, colonIndex).trim();
+    const body = clean.substring(colonIndex + 1).trim();
+    return { title, body };
+  }
+  return { title: null, body: clean };
 }
 
 export function FoodSafetyResult({ result, onClose, onSaveFavorite, isSaved }: Props) {
@@ -60,8 +66,16 @@ export function FoodSafetyResult({ result, onClose, onSaveFavorite, isSaved }: P
     containerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
   
-  const isSafe = result.classification === "SAFE";
-  const isCaution = result.classification === "CONSUME_WITH_CAUTION";
+  const rawClass = String(result.classification || "").toUpperCase();
+  const normalizedClass: "SAFE" | "CONSUME_WITH_CAUTION" | "AVOID_DURING_PREGNANCY" = 
+    (rawClass === "AVOID" || rawClass === "AVOID_DURING_PREGNANCY")
+      ? "AVOID_DURING_PREGNANCY"
+      : (rawClass === "CAUTION" || rawClass === "CONSUME_WITH_CAUTION")
+      ? "CONSUME_WITH_CAUTION"
+      : "SAFE";
+
+  const isSafe = normalizedClass === "SAFE";
+  const isCaution = normalizedClass === "CONSUME_WITH_CAUTION";
   
   const mapping = {
     SAFE: {
@@ -93,7 +107,7 @@ export function FoodSafetyResult({ result, onClose, onSaveFavorite, isSaved }: P
     },
   };
   
-  const map = mapping[result.classification as SafetyClass] || mapping["SAFE"];
+  const map = mapping[normalizedClass] || mapping["SAFE"];
 
   const StatusIcon = map.icon;
 
@@ -163,46 +177,77 @@ export function FoodSafetyResult({ result, onClose, onSaveFavorite, isSaved }: P
         </div>
       </motion.div>
 
-      {/* Key Findings Card */}
+      {/* Pregnancy Safety Analysis Card (Why Safe / Why Caution / Why Not to Eat) */}
       <motion.div variants={staggerItem}>
         <GlassCard glow>
-          <div className="flex items-start gap-4">
-            {/* Animated score ring */}
-            <div className="relative w-[70px] h-[70px] shrink-0 mt-1">
-              <svg viewBox="0 0 56 56" className="w-full h-full -rotate-90">
-                <circle cx="28" cy="28" r="24" fill="none" stroke="rgba(0,0,0,0.04)" strokeWidth="5" />
-                <motion.circle
-                  cx="28" cy="28" r="24"
-                  fill="none"
-                  stroke={map.themeColor}
-                  strokeWidth="5" strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 24}`}
-                  initial={{ strokeDashoffset: 2 * Math.PI * 24 }}
-                  animate={{ strokeDashoffset: 2 * Math.PI * 24 * (1 - result.safety_score / 100) }}
-                  transition={{ duration: 1.2, delay: 0.3, ease: [0.34, 1.1, 0.64, 1] }}
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-black text-[20px] leading-none" style={{ color: map.themeColor }}>
-                  {result.safety_score}
-                </span>
-                <span className="text-[9px] font-extrabold text-gray-400">/100</span>
-              </div>
+          <div className="flex items-center gap-3 mb-3.5 pb-3 border-b" style={{ borderColor: `${map.themeColor}22` }}>
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl shrink-0 shadow-sm" style={{ background: map.glassBg }}>
+              {isSafe ? (
+                <ShieldCheck size={22} style={{ color: map.themeColor }} />
+              ) : isCaution ? (
+                <AlertTriangle size={22} style={{ color: map.themeColor }} />
+              ) : (
+                <XCircle size={22} style={{ color: map.themeColor }} />
+              )}
             </div>
-
-            {/* Why reasons */}
-            <div className="flex-1 pt-0.5">
-              <h3 className="text-[11px] font-black uppercase tracking-[0.15em] mb-2" style={{ color: "var(--text-muted)" }}>
-                Key Findings
+            <div>
+              <h3 className="text-[15px] font-black tracking-tight" style={{ color: "var(--text-primary)" }}>
+                {isSafe
+                  ? (t('scan.whySafeTitle') || "Why It Is Safe to Consume")
+                  : isCaution
+                  ? (t('scan.whyCautionTitle') || "Why to Consume with Caution")
+                  : (t('scan.whyAvoidTitle') || "Why Not to Eat During Pregnancy")}
               </h3>
-              <ul className="space-y-2">
-                {result.why_reasons.map((reason, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-[13px] font-semibold leading-snug" style={{ color: "var(--text-primary)" }}>
-                    <span style={{ color: map.themeColor, marginTop: "1px" }}>•</span>
-                    <span>{reason}</span>
-                  </li>
-                ))}
-              </ul>
+              <p className="text-[11px] font-semibold" style={{ color: "var(--text-muted)" }}>
+                {isSafe
+                  ? (t('scan.whySafeSub') || "Nutritional benefits & pregnancy safety reasons")
+                  : isCaution
+                  ? (t('scan.whyCautionSub') || "Ingredients & nutritional factors requiring moderation")
+                  : (t('scan.whyAvoidSub') || "Critical ingredients & health risks for mother and baby")}
+              </p>
             </div>
+          </div>
+
+          <div className="space-y-2.5">
+            {result.why_reasons && result.why_reasons.length > 0 ? (
+              result.why_reasons.map((rawReason, idx) => {
+                const { title, body } = formatReason(rawReason);
+                return (
+                  <div
+                    key={idx}
+                    className="p-3.5 rounded-[18px] text-[13px] leading-snug flex items-start gap-3 transition-all"
+                    style={{
+                      background: isSafe
+                        ? "rgba(16, 185, 129, 0.06)"
+                        : isCaution
+                        ? "rgba(245, 158, 11, 0.06)"
+                        : "rgba(239, 68, 68, 0.06)",
+                      border: `1px solid ${map.themeColor}20`,
+                    }}
+                  >
+                    <span className="shrink-0 mt-1 flex h-4 w-4 items-center justify-center rounded-full" style={{ background: map.glassBg }}>
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: map.themeColor }} />
+                    </span>
+                    <div className="flex-1">
+                      {title && (
+                        <span className="font-extrabold mr-1.5" style={{ color: map.themeColor }}>
+                          {title}:
+                        </span>
+                      )}
+                      <span className="font-semibold" style={{ color: "var(--text-primary)" }}>
+                        {body}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="p-3.5 rounded-[18px] text-[13px] font-medium" style={{ color: "var(--text-muted)" }}>
+                {isSafe
+                  ? "Contains safe, pregnancy-friendly ingredients supporting maternal and fetal wellness."
+                  : "Review ingredients and consult your doctor before consuming."}
+              </div>
+            )}
           </div>
         </GlassCard>
       </motion.div>
@@ -260,32 +305,6 @@ export function FoodSafetyResult({ result, onClose, onSaveFavorite, isSaved }: P
               </div>
             </div>
           </GlassCard>
-        </motion.div>
-      )}
-
-      {/* Nutritional Snapshot */}
-      {result.nutrient_insights && result.nutrient_insights.length > 0 && (
-        <motion.div variants={staggerItem} className="pt-2">
-          <h3 className="text-[11px] font-black uppercase tracking-[0.15em] mb-3 px-1" style={{ color: "var(--text-muted)" }}>
-            Nutritional Snapshot
-          </h3>
-          <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar -mx-1 px-1">
-            {result.nutrient_insights.map((nutrient, idx) => (
-              <div key={idx} className="flex items-center gap-3 shrink-0 p-3 rounded-[16px]" style={{
-                background: "var(--glass-bg-elevated)",
-                border: "1px solid rgba(0,0,0,0.04)",
-                minWidth: "150px"
-              }}>
-                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(0,0,0,0.03)" }}>
-                  {getNutrientIcon(nutrient.name)}
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[13px] font-extrabold text-gray-800">{nutrient.name}</span>
-                  <span className="text-[11px] font-medium text-gray-500 leading-tight pr-2">{nutrient.benefit}</span>
-                </div>
-              </div>
-            ))}
-          </div>
         </motion.div>
       )}
 

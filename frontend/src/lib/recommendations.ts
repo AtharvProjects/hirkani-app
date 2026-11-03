@@ -1,4 +1,5 @@
 import { PregnancyProfile, RecommendationResponse, RecommendationItem } from './api';
+import { callGemini } from './llm';
 
 export async function getDailyTips(profile: any, count: number = 2) {
   const trimester = profile?.trimester || 2;
@@ -8,23 +9,13 @@ export async function getDailyTips(profile: any, count: number = 2) {
   const diet = profile?.diet_preference || "general";
 
   try {
-    const response = await fetch("/api/llm/tips", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ profile, count, language })
-    });
+    const prompt = `Generate exactly ${count} short, medically sound daily pregnancy nutrition and safety tips for a woman in trimester ${trimester}. Medical conditions: ${conditions}. Allergies: ${allergies}. Diet: ${diet}. Format as a raw JSON object matching {"tips": ["Tip 1", "Tip 2"]} without markdown codeblocks. Output all tip strings in the language denoted by code: ${language}.`;
 
-    const result = await response.json();
-    if (result.choices && result.choices.length > 0) {
-      let textResponse = result.choices[0].message.content;
-      if (textResponse.includes("```json")) {
-        textResponse = textResponse.replace(/```json/g, "").replace(/```/g, "").trim();
-      } else if (textResponse.includes("```")) {
-        textResponse = textResponse.replace(/```/g, "").trim();
-      }
-      const data = JSON.parse(textResponse);
+    const textResponse = await callGemini([{ parts: [{ text: prompt }] }]);
+    const firstBrace = textResponse.indexOf('{');
+    const lastBrace = textResponse.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      const data = JSON.parse(textResponse.substring(firstBrace, lastBrace + 1));
       const tips = data.tips && Array.isArray(data.tips) ? data.tips.slice(0, count) : [];
       if (tips.length >= count) return { trimester, tips };
     }
@@ -34,7 +25,10 @@ export async function getDailyTips(profile: any, count: number = 2) {
 
   return { 
     trimester, 
-    tips: ["Stay hydrated and eat balanced meals.", "Follow your doctor's prenatal guidelines."] 
+    tips: [
+      "Stay consistently hydrated with 8+ glasses of clean water daily to support expanding maternal amniotic fluid.",
+      "Ensure all dairy is pasteurized and meats/eggs are thoroughly cooked to prevent foodborne pathogens."
+    ] 
   };
 }
 
